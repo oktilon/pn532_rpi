@@ -171,9 +171,7 @@ int main(int argc, char** argv) {
         while (doRead) {
             // Check if a card is available to read
             uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
-            if (uid_len == PN532_STATUS_ERROR) {
-                log_wrn ("Scan error");
-            } else {
+            if (uid_len != PN532_STATUS_ERROR) {
                 log_inf ("Found card with UID: %s", dumpHexData(uid, uid_len));
                 break;
             }
@@ -186,12 +184,12 @@ int main(int argc, char** argv) {
                     block_number, MIFARE_CMD_AUTH_A, key_a);
             if (pn532_error != PN532_ERROR_NONE) {
                 log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
-                continue;
+                break;
             }
             pn532_error = PN532_MifareClassicReadBlock(&pn532, buff, block_number);
             if (pn532_error != PN532_ERROR_NONE) {
                 log_wrn ("Read block %hhu error 0x%X", block_number, pn532_error);
-                continue;
+                break;
             }
             log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16));
         }
