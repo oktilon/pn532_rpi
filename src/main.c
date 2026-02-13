@@ -15,11 +15,15 @@
 
 #define DUMP_BUF_SZ     2048
 #define DUMP_TXT_SZ     128
+#define LIST_BLK_SZ     512
 
 int     gLogLevel       = LOG_LEVEL_INFO;    // Logging level
 int     gLogExtended    = 0;                 // Logging with file:line function
 uint8_t gFirstBlock     = 0;
 uint8_t gLastBlock      = 63;
+int     gBlocksCnt      = 0;
+uint8_t *gBlocks        = NULL;
+char    *gBlocksName    = NULL;
 
 // Long command line options
 const struct option longOptions[] = {
@@ -27,8 +31,9 @@ const struct option longOptions[] = {
     {"quiet",       no_argument,        0,  'q'},
     {"extended",    no_argument,        0,  'x'},
     {"key",         required_argument,  0,  'k'},
-    {"begin",       required_argument,  0,  'b'},
-    {"end",         required_argument,  0,  'e'}
+    {"start",       required_argument,  0,  's'},
+    {"end",         required_argument,  0,  'e'},
+    {"blocks",      required_argument,  0,  'b'}
 };
 
 const char *logLevelHeaders[] = {
@@ -93,6 +98,111 @@ const char *dumpHexDataCopy (uint8_t *data, size_t sz, uint8_t withText) {
     return strdup (dumpHexData(data, sz, withText));
 }
 
+void parseBlocks (const char *list)  {
+    uint8_t sectors[LIST_BLK_SZ];
+    char dig[10] = {0};
+    memset(sectors, 0, LIST_BLK_SZ);
+    int beg = -1, end = -1 , cur = -1, lst = 0, v;
+    size_t i, sz = strlen(list), ixDig = 0;
+    for (i = 0; i < sz; i++) {
+        char c = list[i];
+        // log_trc ("char=%c beg=%d end=%d ixDig=%d", c, beg, end, ixDig);
+        if ('0' <= c && c <= '9') {
+            dig[ixDig++] = c;
+            dig[ixDig] = 0;
+        } else if (c == '-') {
+            if (i == 0) {
+                beg = 0;
+                ixDig = 0;
+                continue;
+            } else if (beg < 0 && ixDig == 0) {
+                log_wrn ("Invalid list: %s", list);
+                return;
+            }
+            beg = atoi(dig);
+            dig[0] = 0;
+            ixDig = 0;
+        } else if (c == ',') {
+            if (beg >= 0 && ixDig) {
+                end = atoi(dig);
+                if (end >= beg) {
+                    for (v = beg; v <= end; v++) {
+                        sectors[lst++] = v;
+                        if (lst >= LIST_BLK_SZ) {
+                            log_wrn ("No space for list: %s", list);
+                            return;
+                        }
+                    }
+                } else {
+                    for (v = end; v <= beg; v++) {
+                        sectors[lst++] = v;
+                        if (lst >= LIST_BLK_SZ) {
+                            log_wrn ("No space for list: %s", list);
+                            return;
+                        }
+                    }
+                }
+                beg = -1;
+                end = -1;
+                dig[0] = 0;
+                ixDig = 0;
+            } else if (beg < 0 && ixDig) {
+                v = atoi(dig);
+                sectors[lst++] = v;
+                if (lst >= LIST_BLK_SZ) {
+                    log_wrn ("No space for list: %s", list);
+                    return;
+                }
+                dig[0] = 0;
+                ixDig = 0;
+            } else {
+                log_wrn ("Invalid list: %s", list);
+                return;
+            }
+        }
+    }
+    // log_trc ("FIN beg=%d end=%d ixDig=%d", beg, end, ixDig);
+    if (ixDig) {
+        if (beg < 0) {
+            if (lst < LIST_BLK_SZ) {
+                v = atoi(dig);
+                sectors[lst++] = v;
+            } else {
+                log_wrn ("No space for list: %s", list);
+            }
+        } else {
+            end = atoi(dig);
+            if (end >= beg) {
+                for (v = beg; v <= end; v++) {
+                    sectors[lst++] = v;
+                    if (lst >= LIST_BLK_SZ) {
+                        log_wrn ("No space for list: %s", list);
+                        break;
+                    }
+                }
+            } else {
+                for (v = end; v <= beg; v++) {
+                    sectors[lst++] = v;
+                    if (lst >= LIST_BLK_SZ) {
+                        log_wrn ("No space for list: %s", list);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (lst > 0) {
+        if (gBlocks) {
+            free(gBlocks);
+        }
+        gBlocks = malloc (lst + 1);
+        memset (gBlocks, 0, lst + 1);
+        memcpy (gBlocks, sectors, lst);
+        gBlocksCnt = lst;
+        gBlocksName = strdup (list);
+    }
+}
+
 /**
  * @brief Parse cmdline arguments
  *
@@ -105,7 +215,7 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
     uint8_t v;
     char bByte[] = { 0, 0, 0 };
 
-    while ((i = getopt_long (argc, argv, "vqxk:b:e:", longOptions, NULL)) != -1) {
+    while ((i = getopt_long (argc, argv, "vqxk:s:e:b:", longOptions, NULL)) != -1) {
         switch (i) {
             case 'v': // verbose
                 gLogLevel++;
@@ -122,12 +232,16 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
                 gLogExtended = 1;
                 break;
 
-            case 'b': // begin
+            case 's': // start
                 gFirstBlock = atoi(optarg);
                 break;
 
             case 'e': // end
                 gLastBlock = atoi(optarg);
+                break;
+
+            case 'b': // blocks
+                parseBlocks(optarg);
                 break;
 
             case 'k': // key
@@ -153,12 +267,34 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
     }
 }
 
+int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t *key, uint8_t block_number) {
+    uint32_t pn532_error = PN532_ERROR_NONE;
+    uint8_t buff[255];
+
+    log_dbg ("Auth block %hhu...", block_number);
+    pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
+            block_number, MIFARE_CMD_AUTH_A, key);
+    if (pn532_error != PN532_ERROR_NONE) {
+        log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
+        return pn532_error;
+    }
+
+    pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
+    if (pn532_error != PN532_ERROR_NONE) {
+        log_wrn ("Read block %hhu error 0x%X", block_number, pn532_error);
+        return pn532_error;
+    }
+
+    log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16, 1));
+    return PN532_ERROR_NONE;
+}
+
 int main(int argc, char** argv) {
-    uint8_t buff[255], doRead = 1;
+    uint8_t buff[255], doRead = 1, block_number;
     uint8_t uid[MIFARE_UID_MAX_LENGTH];
     uint8_t key_a[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     uint32_t pn532_error = PN532_ERROR_NONE;
-    int32_t uid_len = 0;
+    int32_t uid_len = 0, ix;
     PN532 pn532;
 
     parseArguments (argc, argv, key_a);
@@ -187,21 +323,19 @@ int main(int argc, char** argv) {
             }
         }
         if (!doRead) break;
-        log_inf ("Reading blocks [%hhu - %hhu]...", gFirstBlock, gLastBlock);
-        for (uint8_t block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
-            log_dbg ("Auth block %hhu...", block_number);
-            pn532_error = PN532_MifareClassicAuthenticateBlock(&pn532, uid, uid_len,
-                    block_number, MIFARE_CMD_AUTH_A, key_a);
-            if (pn532_error != PN532_ERROR_NONE) {
-                log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
-                break;
+        if (gBlocks) {
+            log_inf ("Reading blocks [%s]...", gBlocksName);
+            for (ix = 0; ix < gBlocksCnt; ix ++) {
+                block_number = gBlocks[ix];
+                if (readBlock (&pn532, uid, uid_len, key_a, block_number) != PN532_ERROR_NONE)
+                    break;
             }
-            pn532_error = PN532_MifareClassicReadBlock(&pn532, buff, block_number);
-            if (pn532_error != PN532_ERROR_NONE) {
-                log_wrn ("Read block %hhu error 0x%X", block_number, pn532_error);
-                break;
+        } else {
+            log_inf ("Reading blocks [%hhu - %hhu]...", gFirstBlock, gLastBlock);
+            for (block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
+                if (readBlock (&pn532, uid, uid_len, key_a, block_number) != PN532_ERROR_NONE)
+                    break;
             }
-            log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16, 1));
         }
     }
 
