@@ -11,6 +11,7 @@
 #define LOG_LEVEL_MAX       LOG_LEVEL_TRACE
 
 
+const char *dumpHexData (uint8_t *data, size_t sz, uint8_t withText);
 void logger (const char *file, int line, const char *func, int lvl, const char* fmt, ...);
 
 #define LOG_FILENAME()      ((const char *)(__FILE__))

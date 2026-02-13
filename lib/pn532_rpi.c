@@ -72,6 +72,10 @@ int PN532_Reset(void) {
 void PN532_Log(const char* log) {
     log_dbg (log);
 }
+
+void PN532_Trace(const char* cap, uint8_t *buf, uint8_t sz) {
+    log_trc ("%s: %s", cap, dumpHexData(buf, sz, 0));
+}
 /**************************************************************************
  * End: Reset and Log implements
  **************************************************************************/
@@ -168,6 +172,7 @@ void PN532_SPI_Init(PN532* pn532) {
     pn532->wait_ready = PN532_SPI_WaitReady;
     pn532->wakeup = PN532_SPI_Wakeup;
     pn532->log = PN532_Log;
+    pn532->trace = PN532_Trace;
     // SPI setup
     if (wiringPiSetupGpio() < 0) {  // using Broadcom GPIO pin mapping
         return;
@@ -260,6 +265,7 @@ void PN532_UART_Init(PN532* pn532) {
     pn532->wait_ready = PN532_UART_WaitReady;
     pn532->wakeup = PN532_UART_Wakeup;
     pn532->log = PN532_Log;
+    pn532->trace = PN532_Trace;
     // UART setup
     fd = serialOpen("/dev/ttyS0", 115200);
     if (fd < 0) {
@@ -340,6 +346,7 @@ void PN532_I2C_Init(PN532* pn532) {
     pn532->wait_ready = PN532_I2C_WaitReady;
     pn532->wakeup = PN532_I2C_Wakeup;
     pn532->log = PN532_Log;
+    pn532->trace = PN532_Trace;
     char devname[20];
     snprintf(devname, 19, "/dev/i2c-%d", _I2C_CHANNEL);
     fd = open(devname, O_RDWR);

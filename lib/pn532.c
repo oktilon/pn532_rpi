@@ -2,12 +2,12 @@
  *  @file     pn532.c
  *  @author   Yehui from Waveshare
  *  @license  BSD
- *  
+ *
  *  This is a library for the Waveshare PN532 NFC modules
- *  
- *  Check out the links above for our tutorials and wiring diagrams 
+ *
+ *  Check out the links above for our tutorials and wiring diagrams
  *  These chips use SPI communicate.
- *  
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documnetation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -39,7 +39,7 @@ const uint8_t PN532_FRAME_START[] = {0x00, 0x00, 0xFF};
 /**
   * @brief: Write a frame to the PN532 of at most length bytes in size.
   *     Note that less than length bytes might be returned!
-  * @retval: Returns -1 if there is an error parsing the frame.  
+  * @retval: Returns -1 if there is an error parsing the frame.
   */
 int PN532_WriteFrame(PN532* pn532, uint8_t* data, uint16_t length) {
     if (length > PN532_FRAME_MAX_LENGTH || length < 1) {
@@ -79,7 +79,7 @@ int PN532_WriteFrame(PN532* pn532, uint8_t* data, uint16_t length) {
 /**
   * @brief: Read a response frame from the PN532 of at most length bytes in size.
   *     Note that less than length bytes might be returned!
-  * @retval: Returns frame length or -1 if there is an error parsing the frame.  
+  * @retval: Returns frame length or -1 if there is an error parsing the frame.
   */
 int PN532_ReadFrame(PN532* pn532, uint8_t* response, uint16_t length) {
     uint8_t buff[PN532_FRAME_MAX_LENGTH + 7];
@@ -242,6 +242,7 @@ int PN532_ReadPassiveTarget(
     if (length < 0) {
         return PN532_STATUS_ERROR; // No card found
     }
+    pn532->trace("ANSW", buff, length);
     // Check only 1 card with up to a 7 byte UID is present.
     if (buff[0] != 0x01) {
         pn532->log("More than one card detected!");

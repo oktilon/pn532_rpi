@@ -2,12 +2,12 @@
  *  @file     pn532.h
  *  @author   Yehui from Waveshare
  *  @license  BSD
- *  
+ *
  *  Header file for pn532.c
- *  
- *  Check out the links above for our tutorials and wiring diagrams 
+ *
+ *  Check out the links above for our tutorials and wiring diagrams
  *  These chips use SPI communicate.
- *  
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documnetation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -248,6 +248,7 @@ typedef struct _PN532 {
     bool (*wait_ready)(uint32_t timeout);
     int (*wakeup)(void);
     void (*log)(const char* log);
+    void (*trace)(const char* cap, uint8_t *buf, uint8_t sz);
 } PN532;
 
 
