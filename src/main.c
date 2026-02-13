@@ -63,7 +63,7 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
             if (gLogExtended)
                 printf("[%s] %s%s\033[0m [%s:%d] in %s\n", logLevelHeaders[logIx], logLevelColor[logIx], msg, file, line, func);
             else
-                printf("[%s] %s%s\033[0m\n", logLevelHeaders[logIx], logLevelColor[lvl], msg);
+                printf("[%s] %s%s\033[0m\n", logLevelHeaders[logIx], logLevelColor[logIx], msg);
             fflush(stdout);
         }
     }
@@ -72,11 +72,9 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
 const char *dumpHexData (uint8_t *data, size_t sz) {
     static char _buf[DUMP_BUF_SZ];
     memset(_buf, 0, DUMP_BUF_SZ);
-    int s;
     size_t i, cnt = 0;
     for (i = 0; i < sz && cnt < DUMP_BUF_SZ; i++, cnt+=3) {
-        s = snprintf (_buf + cnt, DUMP_BUF_SZ - cnt, "%02hhX ", data[i]);
-        log_trc ("dump[%lu]=0x%02hhX to pos=%ld buf '%s' ret=%d", i, data[i], cnt, _buf, s);
+        snprintf (_buf + cnt, DUMP_BUF_SZ - cnt, "%02hhX ", data[i]);
     }
     return _buf;
 }
@@ -135,10 +133,8 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
                     bByte[0] = pH >= 0 ? optarg[pH] : '0';
                     bByte[1] = pL >= 0 ? optarg[pL] : '0';
                     v = (uint8_t) strtol (bByte, NULL, 16);
-                    log_wrn ("ix%lu ofs=%ld pL=%ld pH=%ld byte=%s = 0x%02hhX [of %s, size=%ld]", ix, ofs, pL, pH, bByte, v, optarg, s);
                     keyA[ofs] = v;
                 }
-                log_all ("Key: %s", dumpHexData(keyA, 6));
                 break;
 
             default:
@@ -157,7 +153,7 @@ int main(int argc, char** argv) {
 
     parseArguments (argc, argv, key_a);
 
-    log_all ("App %s version %s log level %s", PROJECT, VERSION, logLevelHeaders[gLogLevel]);
+    log_all ("App %s version %s log level %s with key %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], dumpHexData(key_a, 6));
 
     PN532_SPI_Init(&pn532);
     // PN532_I2C_Init(&pn532);
