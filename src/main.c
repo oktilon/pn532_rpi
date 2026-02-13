@@ -365,8 +365,14 @@ int main(int argc, char** argv) {
                 block_number = gBlocks[ix];
                 for (ik = 0; ik < gKeyCount; ik++) {
                     r = readBlock (&pn532, uid, uid_len, keys + ix, block_number);
-                    if (r == -2) continue;
                     if (r == PN532_ERROR_NONE) continue;
+                    if (r == -2) {
+                        uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
+                        if (uid_len != PN532_STATUS_ERROR) {
+                            continue;
+                        }
+                        break;
+                    }
                     break;
                 }
             }
