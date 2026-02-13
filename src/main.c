@@ -285,7 +285,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t *key, uint8
         return pn532_error;
     }
 
-    log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16, 1));
+    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s", block_number, dumpHexData(buff, 16, 1));
     return PN532_ERROR_NONE;
 }
 
@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
             // Check if a card is available to read
             uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
             if (uid_len != PN532_STATUS_ERROR) {
-                log_inf ("Found card with UID: %s", dumpHexData(uid, uid_len, 0));
+                log_app ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
                 break;
             }
         }
