@@ -304,7 +304,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, Key *key, uint8_t b
     uint32_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255];
 
-    log_dbg ("Auth block %hhu...", block_number);
+    log_dbg ("Auth block %hhu by key %s...", block_number, dumpHexData(key->key, 6, 0));
     pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
             block_number, MIFARE_CMD_AUTH_A, key->key);
     if (pn532_error != PN532_ERROR_NONE) {
