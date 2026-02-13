@@ -14,6 +14,7 @@
 #include "main.h"
 
 #define DUMP_BUF_SZ     2048
+#define DUMP_TXT_SZ     128
 
 int     gLogLevel       = LOG_LEVEL_INFO;    // Logging level
 int     gLogExtended    = 0;                 // Logging with file:line function
@@ -69,18 +70,27 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
     }
 }
 
-const char *dumpHexData (uint8_t *data, size_t sz) {
+const char *dumpHexData (uint8_t *data, size_t sz, uint8_t withText) {
     static char _buf[DUMP_BUF_SZ];
+    char _txt[DUMP_TXT_SZ] = {0};
+
     memset(_buf, 0, DUMP_BUF_SZ);
-    size_t i, cnt = 0;
+    size_t i, cnt = 0, ctx = 0;
     for (i = 0; i < sz && cnt < DUMP_BUF_SZ; i++, cnt+=3) {
         snprintf (_buf + cnt, DUMP_BUF_SZ - cnt, "%02hhX ", data[i]);
+        if (withText && ctx < (DUMP_TXT_SZ - 2)) {
+            ctx += sprintf(_txt + ctx, "%c", data[i] <= 0x1F ? '.' : (char)data[i]);
+        }
+    }
+    if (withText && (cnt + ctx + 3) < DUMP_BUF_SZ) {
+        strcat(_buf, "  ");
+        strcat(_buf, _txt);
     }
     return _buf;
 }
 
-const char *dumpHexDataCopy (uint8_t *data, size_t sz) {
-    return strdup (dumpHexData(data, sz));
+const char *dumpHexDataCopy (uint8_t *data, size_t sz, uint8_t withText) {
+    return strdup (dumpHexData(data, sz, withText));
 }
 
 /**
@@ -153,7 +163,7 @@ int main(int argc, char** argv) {
 
     parseArguments (argc, argv, key_a);
 
-    log_all ("App %s version %s log level %s with key %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], dumpHexData(key_a, 6));
+    log_all ("App %s version %s log level %s with key %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], dumpHexData(key_a, 6, 0));
 
     PN532_SPI_Init(&pn532);
     // PN532_I2C_Init(&pn532);
@@ -172,7 +182,7 @@ int main(int argc, char** argv) {
             // Check if a card is available to read
             uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
             if (uid_len != PN532_STATUS_ERROR) {
-                log_inf ("Found card with UID: %s", dumpHexData(uid, uid_len));
+                log_inf ("Found card with UID: %s", dumpHexData(uid, uid_len, 0));
                 break;
             }
         }
@@ -191,7 +201,7 @@ int main(int argc, char** argv) {
                 log_wrn ("Read block %hhu error 0x%X", block_number, pn532_error);
                 break;
             }
-            log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16));
+            log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16, 1));
         }
     }
 
