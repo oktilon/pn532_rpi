@@ -17,7 +17,7 @@
 #define DUMP_TXT_SZ     128
 #define LIST_BLK_SZ     512
 
-int     gLogLevel       = LOG_LEVEL_INFO;    // Logging level
+int     gLogLevel       = LOG_LEVEL_WARNING; // Logging level
 int     gLogExtended    = 0;                 // Logging with file:line function
 uint8_t gFirstBlock     = 0;
 uint8_t gLastBlock      = 63;
@@ -336,6 +336,7 @@ int main(int argc, char** argv) {
                     break;
             }
         }
+        sleep(1);
     }
 
     return 0;

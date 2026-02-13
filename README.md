@@ -1,5 +1,5 @@
 # PN532 Card reader utility
-RaspberryPi NFC Board reader based on Waveshare PN532 library.
+RaspberryPi NFC card reader utility based on Waveshare PN532 library.
 Currently supports reading MiFare/ISO14443A cards data.
 
 ## Requirements
@@ -34,3 +34,10 @@ reader -v -q -x -k ffffffffffff -s 0 -e 63 -b 1-3,5-8
  -e, --end 63      - End block for read (default 63)
  -b, --blocks 1-3  - List blocks for read, overrides -s and -e if specified, (default is `start`-`end` [0-63])
 ```
+Debug levels:
+- Error         (-q)
+- Warning       default
+- Info          (-v)
+- Debug         (-vv)
+- Trace         (-vvv)
+
