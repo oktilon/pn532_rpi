@@ -16,6 +16,11 @@
 #define DUMP_BUF_SZ     2048
 #define DUMP_TXT_SZ     128
 #define LIST_BLK_SZ     512
+#define KEYS_SZ         10
+
+typedef struct key_str {
+    uint8_t key[6];
+} Key;
 
 int     gLogLevel       = LOG_LEVEL_WARNING; // Logging level
 int     gLogExtended    = 0;                 // Logging with file:line function
@@ -24,6 +29,9 @@ uint8_t gLastBlock      = 63;
 int     gBlocksCnt      = 0;
 uint8_t *gBlocks        = NULL;
 char    *gBlocksName    = NULL;
+Key     defaultKey      = {.key={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+Key     keys[KEYS_SZ];
+int     gKeyCount       = 0;
 
 // Long command line options
 const struct option longOptions[] = {
@@ -78,9 +86,9 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
 const char *dumpHexData (uint8_t *data, size_t sz, uint8_t withText) {
     static char _buf[DUMP_BUF_SZ];
     char _txt[DUMP_TXT_SZ] = {0};
+    size_t i, cnt = 0, ctx = 0;
 
     memset(_buf, 0, DUMP_BUF_SZ);
-    size_t i, cnt = 0, ctx = 0;
     for (i = 0; i < sz && cnt < DUMP_BUF_SZ; i++, cnt+=3) {
         snprintf (_buf + cnt, DUMP_BUF_SZ - cnt, "%02hhX ", data[i]);
         if (withText && ctx < (DUMP_TXT_SZ - 2)) {
@@ -96,6 +104,24 @@ const char *dumpHexData (uint8_t *data, size_t sz, uint8_t withText) {
 
 const char *dumpHexDataCopy (uint8_t *data, size_t sz, uint8_t withText) {
     return strdup (dumpHexData(data, sz, withText));
+}
+
+const char *dumpKeys() {
+    static char _buf[DUMP_BUF_SZ];
+    size_t ofs, add = 0;
+
+    memset(_buf, 0, DUMP_BUF_SZ);
+    for (int i = 0; i < gKeyCount; i++) {
+        if (i > 0) {
+            ofs = i*12 + add;
+            add += snprintf(_buf + ofs, DUMP_BUF_SZ - ofs, ", ");
+        }
+        for (int j = 0; j < 6; j++) {
+            ofs = i*12 + add + j*2;
+            snprintf (_buf + ofs, DUMP_BUF_SZ - ofs, "%02hhX", keys[i].key[j]);
+        }
+    }
+    return _buf;
 }
 
 void parseBlocks (const char *list)  {
@@ -209,11 +235,13 @@ void parseBlocks (const char *list)  {
  * @param argc args count
  * @param argv args list
  */
-void parseArguments (int argc, char **argv, uint8_t *keyA) {
+void parseArguments (int argc, char **argv) {
     int i;
-    size_t s, ix, ofs, pH, pL;
+    size_t s, ix, ofs;
+    long pH, pL;
     uint8_t v;
     char bByte[] = { 0, 0, 0 };
+    Key key;
 
     while ((i = getopt_long (argc, argv, "vqxk:s:e:b:", longOptions, NULL)) != -1) {
         switch (i) {
@@ -245,7 +273,7 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
                 break;
 
             case 'k': // key
-                memset (keyA, 0, 6);
+                memset (key.key, 0, 6);
                 s = strlen(optarg);
                 if (s > 12) {
                     log_wrn ("Key size(%ld) is too long", s);
@@ -257,7 +285,12 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
                     bByte[0] = pH >= 0 ? optarg[pH] : '0';
                     bByte[1] = pL >= 0 ? optarg[pL] : '0';
                     v = (uint8_t) strtol (bByte, NULL, 16);
-                    keyA[ofs] = v;
+                    key.key[ofs] = v;
+                }
+                if (gKeyCount < (KEYS_SZ - 1)) {
+                    memcpy(keys[gKeyCount++].key, key.key, 6);
+                } else {
+                    log_wrn ("Key count exceeded %d skip: %s", KEYS_SZ, optarg);
                 }
                 break;
 
@@ -267,16 +300,16 @@ void parseArguments (int argc, char **argv, uint8_t *keyA) {
     }
 }
 
-int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t *key, uint8_t block_number) {
+int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, Key *key, uint8_t block_number) {
     uint32_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255];
 
     log_dbg ("Auth block %hhu...", block_number);
     pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
-            block_number, MIFARE_CMD_AUTH_A, key);
+            block_number, MIFARE_CMD_AUTH_A, key->key);
     if (pn532_error != PN532_ERROR_NONE) {
         log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
-        return pn532_error;
+        return -2;
     }
 
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
@@ -292,13 +325,17 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t *key, uint8
 int main(int argc, char** argv) {
     uint8_t buff[255], doRead = 1, block_number;
     uint8_t uid[MIFARE_UID_MAX_LENGTH];
-    uint8_t key_a[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    int32_t uid_len = 0, ix;
+    int32_t uid_len = 0, ix, ik, r;
     PN532 pn532;
+    memset(keys, 0, KEYS_SZ*sizeof(Key));
 
-    parseArguments (argc, argv, key_a);
+    parseArguments (argc, argv);
+    if (gKeyCount == 0) {
+        memcpy(&(keys[0]), &defaultKey, sizeof(Key));
+        gKeyCount++;
+    }
 
-    log_all ("App %s version %s log level %s with key %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], dumpHexData(key_a, 6, 0));
+    log_all ("App %s version %s log level %s with keys: %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], dumpKeys());
 
     PN532_SPI_Init(&pn532);
     // PN532_I2C_Init(&pn532);
@@ -326,14 +363,22 @@ int main(int argc, char** argv) {
             log_inf ("Reading blocks [%s]...", gBlocksName);
             for (ix = 0; ix < gBlocksCnt; ix ++) {
                 block_number = gBlocks[ix];
-                if (readBlock (&pn532, uid, uid_len, key_a, block_number) != PN532_ERROR_NONE)
+                for (ik = 0; ik < gKeyCount; ik++) {
+                    r = readBlock (&pn532, uid, uid_len, keys + ix, block_number);
+                    if (r == -2) continue;
+                    if (r == PN532_ERROR_NONE) continue;
                     break;
+                }
             }
         } else {
             log_inf ("Reading blocks [%hhu - %hhu]...", gFirstBlock, gLastBlock);
             for (block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
-                if (readBlock (&pn532, uid, uid_len, key_a, block_number) != PN532_ERROR_NONE)
+                for (ik = 0; ik < gKeyCount; ik++) {
+                    r = readBlock (&pn532, uid, uid_len, keys + ix, block_number);
+                    if (r == -2) continue;
+                    if (r == PN532_ERROR_NONE) continue;
                     break;
+                }
             }
         }
         sleep(1);
