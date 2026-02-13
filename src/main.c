@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
             // Check if a card is available to read
             uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
             if (uid_len != PN532_STATUS_ERROR) {
-                log_app ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
+                log_all ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
                 break;
             }
         }
