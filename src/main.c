@@ -102,7 +102,7 @@ void parseBlocks (const char *list)  {
     uint8_t sectors[LIST_BLK_SZ];
     char dig[10] = {0};
     memset(sectors, 0, LIST_BLK_SZ);
-    int beg = -1, end = -1 , cur = -1, lst = 0, v;
+    int beg = -1, end = -1, lst = 0, v;
     size_t i, sz = strlen(list), ixDig = 0;
     for (i = 0; i < sz; i++) {
         char c = list[i];
@@ -293,7 +293,6 @@ int main(int argc, char** argv) {
     uint8_t buff[255], doRead = 1, block_number;
     uint8_t uid[MIFARE_UID_MAX_LENGTH];
     uint8_t key_a[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    uint32_t pn532_error = PN532_ERROR_NONE;
     int32_t uid_len = 0, ix;
     PN532 pn532;
 
