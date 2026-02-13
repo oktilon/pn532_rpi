@@ -1,0 +1,205 @@
+#include <getopt.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+#include "lib/pn532.h"
+#include "lib/pn532_rpi.h"
+
+#include "config.h"
+#include "main.h"
+
+#define DUMP_BUF_SZ     2048
+
+int     gLogLevel       = LOG_LEVEL_INFO;    // Logging level
+int     gLogExtended    = 0;                 // Logging with file:line function
+uint8_t gFirstBlock     = 0;
+uint8_t gLastBlock      = 63;
+
+// Long command line options
+const struct option longOptions[] = {
+    {"verbose",     no_argument,        0,  'v'},
+    {"quiet",       no_argument,        0,  'q'},
+    {"extended",    no_argument,        0,  'x'},
+    {"key",         required_argument,  0,  'k'},
+    {"begin",       required_argument,  0,  'b'},
+    {"end",         required_argument,  0,  'e'}
+};
+
+const char *logLevelHeaders[] = {
+    "\033[1;31mERR\033[0m",  // LOG_LEVEL_ERROR     // q = quiet
+    "\033[1;91mWRN\033[0m",  // LOG_LEVEL_WARNING   //   = default
+    "\033[1;37mINF\033[0m",  // LOG_LEVEL_INFO      // v = verbose
+    "\033[1;36mDBG\033[0m",  // LOG_LEVEL_DEBUG     // vvv = verbose++
+    "\033[1;33mTRC\033[0m",  // LOG_LEVEL_TRACE     // vv = verbose+
+    "APP"   // LOG_LEVEL_ALL
+};
+
+const char *logLevelColor[] = {
+    "\033[0;31m",  // LOG_LEVEL_ERROR   #BC1B27
+    "\033[0;91m",  // LOG_LEVEL_WARNING #F15E42
+    "\033[0;37m",  // LOG_LEVEL_INFO    #D0CFCC
+    "\033[0;36m",  // LOG_LEVEL_DEBUG   #2AA1B3
+    "\033[0;33m",  // LOG_LEVEL_TRACE   #A2734C
+    "\033[0m"   // LOG_LEVEL_ALL <no-color>
+};
+
+void logger (const char *file, int line, const char *func, int lvl, const char* fmt, ...) {
+    char *msg = NULL;
+    int logIx = lvl < 0 ? LOG_LEVEL_MAX+1 : (lvl > LOG_LEVEL_MAX ? LOG_LEVEL_MAX : lvl);
+
+    if (lvl <= gLogLevel) {
+        // Format log message
+        va_list arglist;
+        va_start (arglist, fmt);
+        int r = vasprintf (&msg, fmt, arglist);
+        va_end (arglist);
+
+        if (r) {
+            if (gLogExtended)
+                printf("[%s] %s%s\033[0m [%s:%d] in %s\n", logLevelHeaders[logIx], logLevelColor[logIx], msg, file, line, func);
+            else
+                printf("[%s] %s%s\033[0m\n", logLevelHeaders[logIx], logLevelColor[lvl], msg);
+            fflush(stdout);
+        }
+    }
+}
+
+const char *dumpHexData (uint8_t *data, size_t sz) {
+    static char _buf[DUMP_BUF_SZ];
+    memset(_buf, 0, DUMP_BUF_SZ);
+    int s;
+    size_t i, cnt = 0;
+    for (i = 0; i < sz && cnt < DUMP_BUF_SZ; i++, cnt+=3) {
+        s = snprintf (_buf + cnt, DUMP_BUF_SZ - cnt, "%02hhX ", data[i]);
+        log_trc ("dump[%lu]=0x%02hhX to pos=%ld buf '%s' ret=%d", i, data[i], cnt, _buf, s);
+    }
+    return _buf;
+}
+
+const char *dumpHexDataCopy (uint8_t *data, size_t sz) {
+    return strdup (dumpHexData(data, sz));
+}
+
+/**
+ * @brief Parse cmdline arguments
+ *
+ * @param argc args count
+ * @param argv args list
+ */
+void parseArguments (int argc, char **argv, uint8_t *keyA) {
+    int i;
+    size_t s, ix, ofs, pH, pL;
+    uint8_t v;
+    char bByte[] = { 0, 0, 0 };
+
+    while ((i = getopt_long (argc, argv, "vqxk:b:e:", longOptions, NULL)) != -1) {
+        switch (i) {
+            case 'v': // verbose
+                gLogLevel++;
+                if (gLogLevel > LOG_LEVEL_MAX) {
+                    gLogLevel = LOG_LEVEL_MAX;
+                }
+                break;
+
+            case 'q': // quiet
+                gLogLevel = LOG_LEVEL_ERROR;
+                break;
+
+            case 'x': // quiet
+                gLogExtended = 1;
+                break;
+
+            case 'b': // begin
+                gFirstBlock = atoi(optarg);
+                break;
+
+            case 'e': // end
+                gLastBlock = atoi(optarg);
+                break;
+
+            case 'k': // key
+                memset (keyA, 0, 6);
+                s = strlen(optarg);
+                if (s > 12) {
+                    log_wrn ("Key size(%ld) is too long", s);
+                }
+                for (ix = 0; ix < 6; ix++) {
+                    ofs = 5-ix;
+                    pL = s - ix * 2 - 1;
+                    pH = pL - 1;
+                    bByte[0] = pH >= 0 ? optarg[pH] : '0';
+                    bByte[1] = pL >= 0 ? optarg[pL] : '0';
+                    v = (uint8_t) strtol (bByte, NULL, 16);
+                    log_wrn ("ix%lu ofs=%ld pL=%ld pH=%ld byte=%s = 0x%02hhX [of %s, size=%ld]", ix, ofs, pL, pH, bByte, v, optarg, s);
+                    keyA[ofs] = v;
+                }
+                log_all ("Key: %s", dumpHexData(keyA, 6));
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
+int main(int argc, char** argv) {
+    uint8_t buff[255], doRead = 1;
+    uint8_t uid[MIFARE_UID_MAX_LENGTH];
+    uint8_t key_a[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    uint32_t pn532_error = PN532_ERROR_NONE;
+    int32_t uid_len = 0;
+    PN532 pn532;
+
+    parseArguments (argc, argv, key_a);
+
+    log_all ("App %s version %s log level %s", PROJECT, VERSION, logLevelHeaders[gLogLevel]);
+
+    PN532_SPI_Init(&pn532);
+    // PN532_I2C_Init(&pn532);
+    //PN532_UART_Init(&pn532);
+    if (PN532_GetFirmwareVersion(&pn532, buff) == PN532_STATUS_OK) {
+        log_inf ("Found PN532 with firmware version: %hhu.%hhu", buff[1], buff[2]);
+    } else {
+        log_err ("Didn't find PN53x chip");
+        return -1;
+    }
+    PN532_SamConfiguration(&pn532);
+    while (doRead) {
+        log_all ("Scan your RFID/NFC card...");
+        memset (uid, 0, MIFARE_UID_MAX_LENGTH);
+        while (doRead) {
+            // Check if a card is available to read
+            uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
+            if (uid_len == PN532_STATUS_ERROR) {
+                log_wrn ("Scan error");
+            } else {
+                log_inf ("Found card with UID: %s", dumpHexData(uid, uid_len));
+                break;
+            }
+        }
+        if (!doRead) break;
+        log_inf ("Reading blocks [%hhu - %hhu]...", gFirstBlock, gLastBlock);
+        for (uint8_t block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
+            log_dbg ("Auth block %hhu...", block_number);
+            pn532_error = PN532_MifareClassicAuthenticateBlock(&pn532, uid, uid_len,
+                    block_number, MIFARE_CMD_AUTH_A, key_a);
+            if (pn532_error != PN532_ERROR_NONE) {
+                log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
+                continue;
+            }
+            pn532_error = PN532_MifareClassicReadBlock(&pn532, buff, block_number);
+            if (pn532_error != PN532_ERROR_NONE) {
+                log_wrn ("Read block %hhu error 0x%X", block_number, pn532_error);
+                continue;
+            }
+            log_all ("BLK %02d: %s", block_number, dumpHexData(buff, 16));
+        }
+    }
+
+    return 0;
+}
