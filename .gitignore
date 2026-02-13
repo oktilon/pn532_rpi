@@ -1,4 +1,10 @@
 .vscode*
 examples
 python
+# meson
 build
+# make
+reader
+*.o
+config.h
+*.gch
