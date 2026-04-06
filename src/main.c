@@ -318,7 +318,7 @@ void parseArguments (int argc, char **argv) {
 }
 
 int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_number) {
-    int pn532_error = PN532_ERROR_NONE;
+    uint8_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255], uid_len_repeat = 0;
     int ik;
 
@@ -328,7 +328,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
                 block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
 
         if (pn532_error == PN532_ERROR_NONE) break;
-        log_wrn ("Auth block %hhu error 0x%X (%d)", block_number, pn532_error, pn532_error);
+        log_wrn ("Auth block %hhu error 0x%hhX (%hhd)", block_number, pn532_error, pn532_error);
         uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
         if (uid_len_repeat != PN532_STATUS_ERROR) {
             continue;
@@ -339,6 +339,10 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
     if (uid_len_repeat == PN532_STATUS_ERROR) {
         log_wrn ("Card is missing");
         return -2;
+    }
+
+    if (pn532_error != PN532_ERROR_NONE) {
+        return pn532_error;
     }
 
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
