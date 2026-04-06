@@ -123,7 +123,7 @@ const char *pn532_errorstr(uint8_t error) {
         case PN532_ERROR_MISMATCH:                 return "Mismatch";
         case PN532_ERROR_OVERCURRENT:              return "Over-current";
         case PN532_ERROR_NONAD:                    return "Missing NAD";
-        case PN532_STATUS_ERROR:                   return "Error";
+        case 0xFF:                                 return "Error";
         // case PN532_STATUS_OK:                   return "OK";
         default: break;
     }
@@ -366,7 +366,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
                 block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
 
         if (pn532_error == PN532_ERROR_NONE) break;
-        log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, getPN532ErrorString(pn532_error));
+        log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
         uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
         if (uid_len_repeat != PN532_STATUS_ERROR) {
             continue;
@@ -385,7 +385,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
 
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
     if (pn532_error != PN532_ERROR_NONE) {
-        log_wrn ("Read block %hhu error 0x%X (%s)", block_number, pn532_error, getPN532ErrorString(pn532_error));
+        log_wrn ("Read block %hhu error 0x%X (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
         return pn532_error;
     }
 
