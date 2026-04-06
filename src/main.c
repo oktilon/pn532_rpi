@@ -92,6 +92,44 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
     }
 }
 
+const char *pn532_errorstr(uint8_t error) {
+    switch (error) {
+        case PN532_ERROR_NONE:                     return "No error";
+        case PN532_ERROR_TIMEOUT:                  return "Time Out";
+        case PN532_ERROR_CRC:                      return "CRC error";
+        case PN532_ERROR_PARITY:                   return "Parity error";
+        case PN532_ERROR_COLLISION_BITCOUNT:       return "Collision bitcount";
+        case PN532_ERROR_MIFARE_FRAMING:           return "Framing error";
+        case PN532_ERROR_COLLISION_BITCOLLISION:   return "Bit collision";
+        case PN532_ERROR_NOBUFS:                   return "Buffer error";
+        case PN532_ERROR_RFNOBUFS:                 return "Buffer overflow";
+        case PN532_ERROR_ACTIVE_TOOSLOW:           return "Active too slow";
+        case PN532_ERROR_RFPROTO:                  return "RF Protocol error";
+        case PN532_ERROR_TOOHOT:                   return "Temperature error";
+        case PN532_ERROR_INTERNAL_NOBUFS:          return "Internal buffer overflow";
+        case PN532_ERROR_INVAL:                    return "Invalid parameter";
+        case PN532_ERROR_DEP_INVALID_COMMAND:      return "Invalid DEP command";
+        case PN532_ERROR_DEP_BADDATA:              return "Invalid DEP data";
+        case PN532_ERROR_MIFARE_AUTH:              return "Authentication error";
+        case PN532_ERROR_NOSECURE:                 return "No NFC Security";
+        case PN532_ERROR_I2CBUSY:                  return "I2C bus is Busy";
+        case PN532_ERROR_UIDCHECKSUM:              return "UID Check byte is wrong";
+        case PN532_ERROR_DEPSTATE:                 return "Invalid device state";
+        case PN532_ERROR_HCIINVAL:                 return "Invalid HCI parameter";
+        case PN532_ERROR_CONTEXT:                  return "Invalid context";
+        case PN532_ERROR_RELEASED:                 return "Release error";
+        case PN532_ERROR_CARDSWAPPED:              return "Card swapped";
+        case PN532_ERROR_NOCARD:                   return "No card";
+        case PN532_ERROR_MISMATCH:                 return "Mismatch";
+        case PN532_ERROR_OVERCURRENT:              return "Over-current";
+        case PN532_ERROR_NONAD:                    return "Missing NAD";
+        case PN532_STATUS_ERROR:                   return "Error";
+        // case PN532_STATUS_OK:                   return "OK";
+        default: break;
+    }
+    return "Unknown error";
+}
+
 void showHelp(char *cmd) {
     printf ("Usage: %s [OPTIONS] [-a KEY_A] [-b KEY_B] [-b BLOCKS]\n", cmd);
     printf (" where:\n");
@@ -328,7 +366,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
                 block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
 
         if (pn532_error == PN532_ERROR_NONE) break;
-        log_wrn ("Auth block %hhu error 0x%hhX (%hhd)", block_number, pn532_error, pn532_error);
+        log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, getPN532ErrorString(pn532_error));
         uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
         if (uid_len_repeat != PN532_STATUS_ERROR) {
             continue;
@@ -347,7 +385,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
 
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
     if (pn532_error != PN532_ERROR_NONE) {
-        log_wrn ("Read block %hhu error 0x%X", block_number, pn532_error);
+        log_wrn ("Read block %hhu error 0x%X (%s)", block_number, pn532_error, getPN532ErrorString(pn532_error));
         return pn532_error;
     }
 
