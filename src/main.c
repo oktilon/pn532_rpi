@@ -318,7 +318,7 @@ void parseArguments (int argc, char **argv) {
 }
 
 int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_number) {
-    uint32_t pn532_error = PN532_ERROR_NONE;
+    int pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255], uid_len_repeat = 0;
     int ik;
 
@@ -327,8 +327,8 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
                 block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
 
-        if (pn532_error == PN532_ERROR_NONE) continue;
-        log_err ("Auth error: %X", pn532_error);
+        if (pn532_error == PN532_ERROR_NONE) break;
+        log_wrn ("Auth block %hhu error 0x%X (%d)", block_number, pn532_error, pn532_error);
         uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
         if (uid_len_repeat != PN532_STATUS_ERROR) {
             continue;
@@ -336,8 +336,8 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         break;
     }
 
-    if (pn532_error != PN532_ERROR_NONE) {
-        log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
+    if (uid_len_repeat == PN532_STATUS_ERROR) {
+        log_wrn ("Card is missing");
         return -2;
     }
 
@@ -392,13 +392,13 @@ int main(int argc, char** argv) {
             log_inf ("Reading blocks [%s]...", gBlocksName);
             for (ix = 0; ix < gBlocksCnt; ix ++) {
                 block_number = gBlocks[ix];
-                if (readBlock (&pn532, uid, uid_len, block_number))
+                if (readBlock (&pn532, uid, uid_len, block_number) == -2)
                     break;
             }
         } else {
             log_inf ("Reading blocks range [%hhu - %hhu]...", gFirstBlock, gLastBlock);
             for (block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
-                if (readBlock (&pn532, uid, uid_len, block_number))
+                if (readBlock (&pn532, uid, uid_len, block_number) == -2)
                     break;
             }
         }
