@@ -95,7 +95,9 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
 void showHelp(char *cmd) {
     printf ("Usage: %s [OPTIONS] [-a KEY_A] [-b KEY_B] [-b BLOCKS]\n");
     printf (" where:\n");
-    for (int )
+    for (int i = 0; i < sizeof(longOptions)/sizeof(struct option); i++) {
+        printf ("  -%c, --%-10s %s\n", longOptions[i].val, longOptions[i].name, helpOptions[i]);
+    }
 }
 
 const char *dumpHexData (uint8_t *data, size_t sz, uint8_t withText) {
