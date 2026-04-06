@@ -329,7 +329,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
 
                     if (r == PN532_ERROR_NONE) continue;
                     if (r == -2) {
-                        uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
+                        uid_len = PN532_ReadPassiveTarget(&pReader, uid, PN532_MIFARE_ISO14443A, 1000);
                         if (uid_len != PN532_STATUS_ERROR) {
                             continue;
                         }
