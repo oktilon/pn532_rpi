@@ -319,24 +319,22 @@ void parseArguments (int argc, char **argv) {
 
 int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_number) {
     uint32_t pn532_error = PN532_ERROR_NONE;
-    uint8_t buff[255];
-    int ik, r;
+    uint8_t buff[255], uid_len_repeat = 0;
+    int ik;
 
     for (ik = 0; ik < gKeyCount; ik++) {
         log_dbg ("Auth block %hhu by key[%d] %s...", block_number, ik, dumpHexData(keys[ik].key, 6, 0));
         pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
                 block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
 
-                    if (r == PN532_ERROR_NONE) continue;
-                    if (r == -2) {
-                        uid_len = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
-                        if (uid_len != PN532_STATUS_ERROR) {
-                            continue;
-                        }
-                        break;
-                    }
-                    break;
-                }
+        if (pn532_error == PN532_ERROR_NONE) continue;
+        log_err ("Auth error: %X", pn532_error);
+        uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
+        if (uid_len_repeat != PN532_STATUS_ERROR) {
+            continue;
+        }
+        break;
+    }
 
     if (pn532_error != PN532_ERROR_NONE) {
         log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
