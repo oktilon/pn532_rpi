@@ -367,9 +367,9 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
 
         if (pn532_error == PN532_ERROR_NONE) break;
         log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
+        sleep(1);
         uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
         if (uid_len_repeat != PN532_STATUS_ERROR) {
-            sleep(1);
             continue;
         }
         break;
