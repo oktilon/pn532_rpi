@@ -369,6 +369,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
         uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
         if (uid_len_repeat != PN532_STATUS_ERROR) {
+            sleep(1);
             continue;
         }
         break;
@@ -437,12 +438,14 @@ int main(int argc, char** argv) {
                 if (readBlock (&pn532, uid, uid_len, block_number) == -2)
                     break;
             }
+            sleep(3);
         } else {
             log_inf ("Reading blocks range [%hhu - %hhu]...", gFirstBlock, gLastBlock);
             for (block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
                 if (readBlock (&pn532, uid, uid_len, block_number) == -2)
                     break;
             }
+            sleep(3);
         }
         sleep(1);
     }
