@@ -35,13 +35,22 @@ int     gKeyCount       = 0;
 
 // Long command line options
 const struct option longOptions[] = {
-    {"verbose",     no_argument,        0,  'v'},
-    {"quiet",       no_argument,        0,  'q'},
-    {"extended",    no_argument,        0,  'x'},
-    {"key",         required_argument,  0,  'k'},
-    {"start",       required_argument,  0,  's'},
-    {"end",         required_argument,  0,  'e'},
-    {"blocks",      required_argument,  0,  'b'}
+    {"verbose",  no_argument,       0, 'v'},
+    {"quiet",    no_argument,       0, 'q'},
+    {"extended", no_argument,       0, 'x'},
+    {"keya",     required_argument, 0, 'a'},
+    {"keyb",     required_argument, 0, 'b'},
+    {"list",     required_argument, 0, 'l'},
+    {"help",     no_argument,       0, 'h'}
+};
+
+const char *helpOptions[] = {
+      "Increase debug level (see below)"
+    , "Minimal debug level (see below)"
+    , "Extended logs with: file name, line number, function name"
+    , "Custom 6-bytes Key_A in hex format (default is FFFFFFFFFFFF)"
+    , "Custom 6-bytes Key_B in hex format (default is no Key_B)"
+    , "Comma separated list of blocks for read, could be interval in format START-END (default 0-63)"
 };
 
 const char *logLevelHeaders[] = {
@@ -75,12 +84,18 @@ void logger (const char *file, int line, const char *func, int lvl, const char* 
 
         if (r) {
             if (gLogExtended)
-                printf("[%s] %s%s\033[0m [%s:%d] in %s\n", logLevelHeaders[logIx], logLevelColor[logIx], msg, file, line, func);
+                printf("%s%s\033[0m [%s:%d] in %s\n", logLevelColor[logIx], msg, file, line, func);
             else
-                printf("[%s] %s%s\033[0m\n", logLevelHeaders[logIx], logLevelColor[logIx], msg);
+                printf("%s%s\033[0m\n", logLevelColor[logIx], msg);
             fflush(stdout);
         }
     }
+}
+
+void showHelp(char *cmd) {
+    printf ("Usage: %s [OPTIONS] [-a KEY_A] [-b KEY_B] [-b BLOCKS]\n");
+    printf (" where:\n");
+    for (int )
 }
 
 const char *dumpHexData (uint8_t *data, size_t sz, uint8_t withText) {
@@ -300,13 +315,27 @@ void parseArguments (int argc, char **argv) {
     }
 }
 
-int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, Key *key, uint8_t block_number) {
+int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_number) {
     uint32_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255];
+    int ik, r;
 
-    log_dbg ("Auth block %hhu by key %s...", block_number, dumpHexData(key->key, 6, 0));
-    pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
-            block_number, MIFARE_CMD_AUTH_A, key->key);
+    for (ik = 0; ik < gKeyCount; ik++) {
+        log_dbg ("Auth block %hhu by key[%d] %s...", block_number, ik, dumpHexData(keys[ik].key, 6, 0));
+        pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
+                block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
+
+                    if (r == PN532_ERROR_NONE) continue;
+                    if (r == -2) {
+                        uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
+                        if (uid_len != PN532_STATUS_ERROR) {
+                            continue;
+                        }
+                        break;
+                    }
+                    break;
+                }
+
     if (pn532_error != PN532_ERROR_NONE) {
         log_wrn ("Auth block %hhu error 0x%X", block_number, pn532_error);
         return -2;
@@ -325,7 +354,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, Key *key, uint8_t b
 int main(int argc, char** argv) {
     uint8_t buff[255], doRead = 1, block_number;
     uint8_t uid[MIFARE_UID_MAX_LENGTH];
-    int32_t uid_len = 0, ix, ik, r;
+    int32_t uid_len = 0, ix;
     PN532 pn532;
     memset(keys, 0, KEYS_SZ*sizeof(Key));
 
@@ -335,7 +364,7 @@ int main(int argc, char** argv) {
         gKeyCount++;
     }
 
-    log_all ("App %s version %s log level %s with keys: %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], dumpKeys());
+    log_all ("App %s version %s log level %s with keys[%d]: %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], gKeyCount, dumpKeys());
 
     PN532_SPI_Init(&pn532);
     // PN532_I2C_Init(&pn532);
@@ -363,28 +392,14 @@ int main(int argc, char** argv) {
             log_inf ("Reading blocks [%s]...", gBlocksName);
             for (ix = 0; ix < gBlocksCnt; ix ++) {
                 block_number = gBlocks[ix];
-                for (ik = 0; ik < gKeyCount; ik++) {
-                    r = readBlock (&pn532, uid, uid_len, keys + ix, block_number);
-                    if (r == PN532_ERROR_NONE) continue;
-                    if (r == -2) {
-                        uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
-                        if (uid_len != PN532_STATUS_ERROR) {
-                            continue;
-                        }
-                        break;
-                    }
+                if (readBlock (&pn532, uid, uid_len, block_number))
                     break;
-                }
             }
         } else {
-            log_inf ("Reading blocks [%hhu - %hhu]...", gFirstBlock, gLastBlock);
+            log_inf ("Reading blocks range [%hhu - %hhu]...", gFirstBlock, gLastBlock);
             for (block_number = gFirstBlock; block_number <= gLastBlock; block_number++) {
-                for (ik = 0; ik < gKeyCount; ik++) {
-                    r = readBlock (&pn532, uid, uid_len, keys + ix, block_number);
-                    if (r == -2) continue;
-                    if (r == PN532_ERROR_NONE) continue;
+                if (readBlock (&pn532, uid, uid_len, block_number))
                     break;
-                }
             }
         }
         sleep(1);
