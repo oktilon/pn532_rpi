@@ -404,6 +404,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
     if (pn532_error != PN532_ERROR_NONE) {
         log_wrn ("Read block %hhu error 0x%X (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
+        gAuthSector = -1;
         return pn532_error;
     }
 
