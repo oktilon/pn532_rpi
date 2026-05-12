@@ -460,6 +460,7 @@ int main(int argc, char** argv) {
         memset (uid, 0, MIFARE_UID_MAX_LENGTH);
         while (doRead) {
             // Check if a card is available to read
+            gAuthSector = -1;
             uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
             if (uid_len != PN532_STATUS_ERROR) {
                 log_all ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
