@@ -373,7 +373,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
     int sector = block_number % 4;
     if (sector != gAuthSector) {
         for (ik = 0; ik < gKeyCount; ik++) {
-            log_dbg ("Auth block %hhu by key[%d] %s...", block_number, ik, dumpHexData(keys[ik].key, 6, 0));
+            log_dbg ("Auth block %hhu [Sector: %d Prev: %d] by key[%d] %s...", block_number, sector, gAuthSector, ik, dumpHexData(keys[ik].key, 6, 0));
             pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
                     block_number, MIFARE_CMD_AUTH_A, keys[ik].key);
 
