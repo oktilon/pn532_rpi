@@ -52,6 +52,7 @@ const char *helpOptions[] = {
     , "Custom 6-bytes Key_A in hex format (default is FFFFFFFFFFFF)"
     , "Custom 6-bytes Key_B in hex format (default is no Key_B)"
     , "Comma separated list of blocks for read, could be interval in format START-END (default 0-63)"
+    , "Show this help"
 };
 
 const char *logLevelHeaders[] = {
@@ -299,7 +300,7 @@ int parseArguments (int argc, char **argv) {
     char bByte[] = { 0, 0, 0 };
     Key key;
 
-    while ((i = getopt_long (argc, argv, "vqxk:s:e:b:", longOptions, NULL)) != -1) {
+    while ((i = getopt_long (argc, argv, "vqxk:s:e:b:h", longOptions, NULL)) != -1) {
         switch (i) {
             case 'v': // verbose
                 gLogLevel++;
