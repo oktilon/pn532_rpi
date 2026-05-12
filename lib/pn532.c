@@ -74,6 +74,7 @@ int PN532_WriteFrame(PN532* pn532, uint8_t* data, uint16_t length) {
     if (pn532->write_data(frame, length + 7) != PN532_STATUS_OK) {
         return PN532_STATUS_ERROR;
     }
+    pn532->trace("SNT", frame, length + 7);
     return PN532_STATUS_OK;
 }
 
@@ -87,7 +88,7 @@ int PN532_ReadFrame(PN532* pn532, uint8_t* response, uint16_t length) {
     uint8_t checksum = 0;
     // Read frame with expected length of data.
     pn532->read_data(buff, length + 7);
-    pn532->trace("FRM", buff, length + 7);
+    pn532->trace("GOT", buff, length + 7);
     // Swallow all the 0x00 values that preceed 0xFF.
     uint8_t offset = 0;
     while (buff[offset] == 0x00) {
