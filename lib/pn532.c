@@ -238,7 +238,7 @@ int PN532_ReadPassiveTarget(
 ) {
     // Send passive read command for 1 card.  Expect at most a 7 byte UUID.
     uint8_t params[] = {0x01, card_baud};
-    uint8_t buff[19];
+    uint8_t buff[24];
     int length = PN532_CallFunction(pn532, PN532_COMMAND_INLISTPASSIVETARGET,
                         buff, sizeof(buff), params, sizeof(params), timeout);
     if (length < 0) {
