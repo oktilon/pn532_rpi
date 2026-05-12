@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include "pn532.h"
+#include "main.h"
 
 const uint8_t PN532_ACK[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 const uint8_t PN532_FRAME_START[] = {0x00, 0x00, 0xFF};
@@ -86,6 +87,7 @@ int PN532_ReadFrame(PN532* pn532, uint8_t* response, uint16_t length) {
     uint8_t checksum = 0;
     // Read frame with expected length of data.
     pn532->read_data(buff, length + 7);
+    pn532->trace("FRM", buff, length + 7);
     // Swallow all the 0x00 values that preceed 0xFF.
     uint8_t offset = 0;
     while (buff[offset] == 0x00) {
