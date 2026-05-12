@@ -430,6 +430,7 @@ int main(int argc, char** argv) {
             log_err ("Wrong interval [%d - %d]", gFirstBlock, gLastBlock);
             return -1;
         }
+        char blkName[64] = {0};
         gBlocksCnt = gLastBlock - gFirstBlock + 1;
         gBlocks = malloc (gBlocksCnt + 1);
         memset (gBlocks, 0, gBlocksCnt + 1);
@@ -437,8 +438,8 @@ int main(int argc, char** argv) {
         for (int i = 0; i < gBlocksCnt; i++) {
             gBlocks[i] = bl++;
         }
-        sprintf(buff, "%d-%d", gFirstBlock, gLastBlock);
-        gBlocksName = strdup (buff);
+        sprintf(blkName, "%d-%d", gFirstBlock, gLastBlock);
+        gBlocksName = strdup (blkName);
     }
 
     log_all ("App %s version %s log level %s with keys[%d]: %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], gKeyCount, dumpKeys());
