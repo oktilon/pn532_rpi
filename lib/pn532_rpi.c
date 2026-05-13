@@ -40,7 +40,7 @@
 #include "pn532_rpi.h"
 #include "main.h"
 
-#define _RESET_PIN                      (20)
+#define _RESET_PIN                      (27)
 #define _REQ_PIN                        (16)
 
 #define _SPI_STATREAD                   (0x02)
