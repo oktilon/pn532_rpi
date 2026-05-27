@@ -114,12 +114,14 @@ int main(int argc, char *argv[]) {
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
     if (solidColor == 1) {
+        printf("Print solid color: %X %X\n", userColor[0], userColor[1]);
         for (i = 0; i < screenSize; i+=pixelSize) {
             for (bit = 0; i < pixelSize; i++) {
                 fbBuf[bit]= userColor[bit];
             }
         }
     } else {
+        printf("Print rainbow\n");
         // row Rainbow
         for (size_t x = 0; x < vinfo.xres; x++) {
             for (size_t y = 0; y < vinfo.yres; y++) {
@@ -127,10 +129,10 @@ int main(int argc, char *argv[]) {
                 size_t colorIx = x / (vinfo.xres/7);
                 char pixel[pixelSize];
                 switch (colorIx) {
-                    // case 0: // Red
-                    //     pixel[0] = 0b00000000;
-                    //     pixel[1] = 0b00011111;
-                    //     break;
+                    case 0: // Red
+                        pixel[0] = 0b00000000;
+                        pixel[1] = 0b00011111;
+                        break;
                     case 1: // Orange
                         pixel[0] = 0b00010100;
                         pixel[1] = 0b11111111;
