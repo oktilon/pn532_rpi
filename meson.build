@@ -27,10 +27,26 @@ src = [
     , 'src/main.c'
 ]
 
-# Create executable
+# Create reader executable
 executable(
       prjName
     , src
     , include_directories : inc
     , link_args : '-lwiringPi'
+)
+
+graph_inc = include_directories([
+    'src'
+])
+
+graph_deps = [
+    dependency('lvgl')
+]
+
+# Create graph_fb executable
+executable(
+      'graph_fb'
+    , 'src/graph_fb.c'
+    , include_directories: graph_inc
+    , dependencies: graph_deps
 )
