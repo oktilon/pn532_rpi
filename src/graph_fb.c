@@ -99,6 +99,12 @@ int main(int argc, char *argv[]) {
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
     do {
+        // draw white
+        for (size_t i = 0; i < screenSize; i+=pixelSize) {
+            fbBuf[i]= 0b11111111;
+            fbBuf[i+1] = 0b11111111;
+        }
+        sleep(1);
         // draw red
         for (size_t i = 0; i < screenSize; i+=pixelSize) {
             fbBuf[i]= 0b00000000;
@@ -123,13 +129,8 @@ int main(int argc, char *argv[]) {
             fbBuf[i+1] = 0b00000000;
         }
         sleep(1);
-        // draw white
-        for (size_t i = 0; i < screenSize; i+=pixelSize) {
-            fbBuf[i]= 0b11111111;
-            fbBuf[i+1] = 0b11111111;
-        }
-        sleep(1);
         break;
+
         // row Rainbow
         for (size_t i = 0; i < vinfo.xres; i++) {
             for (size_t j = 0; j < vinfo.yres; j++) {
