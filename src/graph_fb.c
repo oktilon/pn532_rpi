@@ -117,6 +117,7 @@ int main(int argc, char *argv[]) {
         printf("Print solid color: %X %X\n", userColor[0], userColor[1]);
         for (i = 0; i < screenSize; i+=pixelSize) {
             for (bit = 0; i < pixelSize; i++) {
+                printf("[%ld]=%02x ", i+bit, userColor[bit]);
                 fbBuf[i+bit]= userColor[bit];
             }
         }
