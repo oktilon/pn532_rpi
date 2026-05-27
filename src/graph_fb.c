@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     struct fb_var_screeninfo vinfo;
     struct fb_fix_screeninfo finfo;
     struct mxcfb_gbl_alpha alpha;
-    long int screensize = 0;
+    long int screenSize = 0;
     char *fbBuf = 0;
     char *fbDev = "/dev/fb0";
 
@@ -68,26 +68,158 @@ int main(int argc, char *argv[]) {
     printf("  TRN: offset=%u, length=%u, msb_right=%u\n", vinfo.transp.offset, vinfo.transp.length, vinfo.transp.msb_right);
 
     // Calculate the size of the screen in bytes
-    screensize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
-    printf("Screen size in bytes: %ld\n", screensize);
+    screenSize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
+    printf("Screen size in bytes: %ld\n", screenSize);
 
     // Map the framebuffer to memory
-    fbBuf = (char *)mmap(0, screensize, PROT_READ | PROT_WRITE, MAP_SHARED, fdFb, 0);
+    fbBuf = (char *)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, fdFb, 0);
     if ((intptr_t)fbBuf == -1) {
         printf("Error: failed to map framebuffer device to memory. Error(%d): %m", errno);
         return 4;
     }
 
     // Clear the screen by setting all pixels to black
-    memset(fbBuf, 0, screensize);
+    memset(fbBuf, 0, screenSize);
 
     // Disable global alpha since we need Pixel Alpha
     alpha.enable = 0;
     alpha.alpha = 0xff;
     ioctl(fdFb, MXCFB_SET_GBL_ALPHA, &alpha);
 
+    // Disable screen blanking (keep it always on)
+    ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
+
+    do {
+        // draw red
+        for (size_t i = 0; i < screenSize; i+=4) {
+            fbBuf[i]= 0x00;
+            fbBuf[i+1] = 0x00;
+            fbBuf[i+2] = 0xff;
+            fbBuf[i+3] = 0xff;
+        }
+        sleep(1);
+        // draw green
+        for (size_t i = 0; i < screenSize; i+=4) {
+            fbBuf[i]= 0x00;
+            fbBuf[i+1] = 0xff;
+            fbBuf[i+2] = 0x00;
+            fbBuf[i+3] = 0xff;
+        }
+        sleep(1);
+        // draw blue
+        for (size_t i = 0; i < screenSize; i+=4) {
+            fbBuf[i]= 0xff;
+            fbBuf[i+1] = 0x00;
+            fbBuf[i+2] = 0x00;
+            fbBuf[i+3] = 0xff;
+        }
+        sleep(1);
+        // draw black
+        for (size_t i = 0; i < screenSize; i+=4) {
+            fbBuf[i]= 0x00;
+            fbBuf[i+1] = 0x00;
+            fbBuf[i+2] = 0x00;
+            fbBuf[i+3] = 0xff;
+        }
+        sleep(1);
+        // draw white
+        for (size_t i = 0; i < screenSize; i+=4) {
+            fbBuf[i]= 0xff;
+            fbBuf[i+1] = 0xff;
+            fbBuf[i+2] = 0xff;
+            fbBuf[i+3] = 0xff;
+        }
+        sleep(1);
+        // row Rainbow
+        for (size_t i = 0; i < vinfo.xres; i++) {
+            for (size_t j = 0; j < vinfo.yres; j++) {
+                size_t index = i / (vinfo.xres/5);
+                /*
+                    * 列         数字下标偏移量
+                    * i   +    j * vinfo.yres * 4
+                    */
+                switch (index) {
+                case 0:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 1:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 2:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 3:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 4:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+        sleep(1);
+        // column Rainbow
+        for (size_t i = 0; i < vinfo.xres; i++) {
+            for (size_t j = 0; j < vinfo.yres; j++) {
+                size_t index = j / (vinfo.yres/5);
+                switch (index) {
+                case 0:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 1:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 2:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 3:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                case 4:
+                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
+                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+        sleep(1);
+    } while (1);
+
     // Unmap the framebuffer and close the device file
-    munmap(fbBuf, screensize);
+    munmap(fbBuf, screenSize);
     close(fdFb);
 
   return 0;
