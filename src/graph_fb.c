@@ -149,24 +149,24 @@ int main(int argc, char *argv[]) {
                         pixel[1] = 0b11111100;
                         break;
                     case 2: // Yellow
-                        pixel[0] = 0b00000111;
+                        pixel[0] = 0b11100000;
                         pixel[1] = 0b11111111;
                         break;
                     case 3: // Green
-                        pixel[0] = 0b00000111;
-                        pixel[1] = 0b11100000;
+                        pixel[0] = 0b11100000;
+                        pixel[1] = 0b00000111;
                         break;
                     case 4: // Cyan
                         pixel[0] = 0b11111111;
-                        pixel[1] = 0b11100000;
+                        pixel[1] = 0b00000111;
                         break;
                     case 5: // Blue
-                        pixel[0] = 0b11111000;
+                        pixel[0] = 0b00011111;
                         pixel[1] = 0b00000000;
                         break;
                     case 6: // Purple
-                        pixel[0] = 0b11111001;
-                        pixel[1] = 0b00010011;
+                        pixel[0] = 0b00011111;
+                        pixel[1] = 0b10011001;
                         break;
                     default: // Black
                         pixel[0] = 0b00000000;
