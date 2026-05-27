@@ -56,9 +56,9 @@ int main(int argc, char *argv[]) {
     printf("  line_length: %u\n", finfo.line_length);
 
     // Disable global alpha since we need Pixel Alpha
-    alpha.enable = 0;
-    alpha.alpha = 0xff;
-    ioctl(fdFb, MXCFB_SET_GBL_ALPHA, &alpha);
+    // alpha.enable = 0;
+    // alpha.alpha = 0xff;
+    // ioctl(fdFb, MXCFB_SET_GBL_ALPHA, &alpha);
 
 
     // Get variable screen information
@@ -99,82 +99,83 @@ int main(int argc, char *argv[]) {
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
     do {
-        // draw white
-        for (size_t i = 0; i < screenSize; i+=pixelSize) {
-            fbBuf[i]= 0b11111111;
-            fbBuf[i+1] = 0b11111111;
-        }
-        sleep(1);
-        // draw red
-        for (size_t i = 0; i < screenSize; i+=pixelSize) {
-            fbBuf[i]= 0b00000000;
-            fbBuf[i+1] = 0b00011111;
-        }
-        sleep(1);
-        // draw green
-        for (size_t i = 0; i < screenSize; i+=pixelSize) {
-            fbBuf[i]= 0b00000111;
-            fbBuf[i+1] = 0b11100000;
-        }
-        sleep(1);
-        // draw blue
-        for (size_t i = 0; i < screenSize; i+=pixelSize) {
-            fbBuf[i]= 0b11111000;
-            fbBuf[i+1] = 0b00000000;
-        }
-        sleep(1);
-        // draw black
-        for (size_t i = 0; i < screenSize; i+=pixelSize) {
-            fbBuf[i]= 0b00000000;
-            fbBuf[i+1] = 0b00000000;
-        }
-        sleep(1);
-        break;
+        // // draw white
+        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
+        //     fbBuf[i]= 0b11111111;
+        //     fbBuf[i+1] = 0b11111111;
+        // }
+        // sleep(1);
+        // // draw red
+        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
+        //     fbBuf[i]= 0b00000000;
+        //     fbBuf[i+1] = 0b00011111;
+        // }
+        // sleep(1);
+        // // draw green
+        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
+        //     fbBuf[i]= 0b00000111;
+        //     fbBuf[i+1] = 0b11100000;
+        // }
+        // sleep(1);
+        // // draw blue
+        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
+        //     fbBuf[i]= 0b11111000;
+        //     fbBuf[i+1] = 0b00000000;
+        // }
+        // sleep(1);
+        // // draw black
+        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
+        //     fbBuf[i]= 0b00000000;
+        //     fbBuf[i+1] = 0b00000000;
+        // }
+        // sleep(1);
+        // break;
 
         // row Rainbow
-        for (size_t i = 0; i < vinfo.xres; i++) {
-            for (size_t j = 0; j < vinfo.yres; j++) {
-                size_t index = i / (vinfo.xres/5);
-                /*
-                    * 列         数字下标偏移量
-                    * i   +    j * vinfo.yres * 4
-                    */
-                switch (index) {
-                case 0:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 1:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 2:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 3:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 4:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                default:
-                    break;
+        for (size_t x = 0; x < vinfo.xres; x++) {
+            for (size_t y = 0; y < vinfo.yres; y++) {
+                size_t offset = (x + y * vinfo.xres) * pixelSize;
+                size_t colorIx = x / (vinfo.xres/7);
+                char pixel[pixelSize];
+                switch (colorIx) {
+                    case 0: // Red
+                        pixel[0] = 0b00000000;
+                        pixel[1] = 0b00011111;
+                        break;
+                    case 1: // Orange
+                        pixel[0] = 0b00010100;
+                        pixel[1] = 0b11111111;
+                        break;
+                    case 2: // Yellow
+                        pixel[0] = 0b00000111;
+                        pixel[1] = 0b11111111;
+                        break;
+                    case 3: // Green
+                        pixel[0] = 0b00000111;
+                        pixel[1] = 0b11100000;
+                        break;
+                    case 4: // Cyan
+                        pixel[0] = 0b11111111;
+                        pixel[1] = 0b11100000;
+                        break;
+                    case 5: // Blue
+                        pixel[0] = 0b11111000;
+                        pixel[1] = 0b00000000;
+                        break;
+                    case 6: // Purple
+                        pixel[0] = 0b11111001;
+                        pixel[1] = 0b00010011;
+                        break;
+                    default: // Black
+                        pixel[0] = 0b00000000;
+                        pixel[1] = 0b00000000;
+                        break;
                 }
+                fbBuf[offset] = pixel[0];
+                fbBuf[offset+1] = pixel[1];
             }
         }
+        break;
         sleep(1);
         // column Rainbow
         for (size_t i = 0; i < vinfo.xres; i++) {
