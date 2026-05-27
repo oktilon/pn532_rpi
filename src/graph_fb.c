@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     if (solidColor == 1) {
         printf("Put solid color in %ld buffer by %hd bytes:", screenSize, pixelSize);
         for (bit = 0; bit < pixelSize; bit++) {
-            printf(" %02x", bit, userColor[bit]);
+            printf(" %02x", userColor[bit]);
         }
         printf("\n");
         for (i = 0; i < screenSize; i+=pixelSize) {
