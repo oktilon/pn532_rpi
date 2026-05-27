@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
     struct fb_fix_screeninfo finfo;
     struct mxcfb_gbl_alpha alpha;
     long int screenSize = 0;
+    unsigned short pixelSize = 0;
     char *fbBuf = 0;
     char *fbDev = "/dev/fb0";
 
@@ -54,6 +55,12 @@ int main(int argc, char *argv[]) {
     printf("  ywrapstep: %u\n", finfo.ywrapstep);
     printf("  line_length: %u\n", finfo.line_length);
 
+    // Disable global alpha since we need Pixel Alpha
+    alpha.enable = 0;
+    alpha.alpha = 0xff;
+    ioctl(fdFb, MXCFB_SET_GBL_ALPHA, &alpha);
+
+
     // Get variable screen information
     if (ioctl(fdFb, FBIOGET_VSCREENINFO, &vinfo) == -1) {
         printf("Error reading variable information from device %s. Error(%d): %m", fbDev, errno);
@@ -65,11 +72,18 @@ int main(int argc, char *argv[]) {
     printf("  RED: offset=%u, length=%u, msb_right=%u\n", vinfo.red.offset, vinfo.red.length, vinfo.red.msb_right);
     printf("  GRN: offset=%u, length=%u, msb_right=%u\n", vinfo.green.offset, vinfo.green.length, vinfo.green.msb_right);
     printf("  BLU: offset=%u, length=%u, msb_right=%u\n", vinfo.blue.offset, vinfo.blue.length, vinfo.blue.msb_right);
-    printf("  TRN: offset=%u, length=%u, msb_right=%u\n", vinfo.transp.offset, vinfo.transp.length, vinfo.transp.msb_right);
+    printf("  ALP: offset=%u, length=%u, msb_right=%u\n", vinfo.transp.offset, vinfo.transp.length, vinfo.transp.msb_right);
 
     // Calculate the size of the screen in bytes
     screenSize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
+    pixelSize = vinfo.bits_per_pixel / 8;
     printf("Screen size in bytes: %ld\n", screenSize);
+    printf("Pixel size in bytes: %ld\n", pixelSize);
+
+    if (pixelSize == 0) {
+        printf("Error: bits_per_pixel is zero, cannot calculate pixel size.");
+        return 5;
+    }
 
     // Map the framebuffer to memory
     fbBuf = (char *)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, fdFb, 0);
@@ -81,55 +95,41 @@ int main(int argc, char *argv[]) {
     // Clear the screen by setting all pixels to black
     memset(fbBuf, 0, screenSize);
 
-    // Disable global alpha since we need Pixel Alpha
-    alpha.enable = 0;
-    alpha.alpha = 0xff;
-    ioctl(fdFb, MXCFB_SET_GBL_ALPHA, &alpha);
-
     // Disable screen blanking (keep it always on)
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
     do {
         // draw red
-        for (size_t i = 0; i < screenSize; i+=4) {
-            fbBuf[i]= 0x00;
-            fbBuf[i+1] = 0x00;
-            fbBuf[i+2] = 0xff;
-            fbBuf[i+3] = 0xff;
+        for (size_t i = 0; i < screenSize; i+=pixelSize) {
+            fbBuf[i]= 0b00000000;
+            fbBuf[i+1] = 0b00011111;
         }
         sleep(1);
         // draw green
-        for (size_t i = 0; i < screenSize; i+=4) {
-            fbBuf[i]= 0x00;
-            fbBuf[i+1] = 0xff;
-            fbBuf[i+2] = 0x00;
-            fbBuf[i+3] = 0xff;
+        for (size_t i = 0; i < screenSize; i+=pixelSize) {
+            fbBuf[i]= 0b00000111;
+            fbBuf[i+1] = 0b11100000;
         }
         sleep(1);
         // draw blue
-        for (size_t i = 0; i < screenSize; i+=4) {
-            fbBuf[i]= 0xff;
-            fbBuf[i+1] = 0x00;
-            fbBuf[i+2] = 0x00;
-            fbBuf[i+3] = 0xff;
+        for (size_t i = 0; i < screenSize; i+=pixelSize) {
+            fbBuf[i]= 0b11111000;
+            fbBuf[i+1] = 0b00000000;
         }
         sleep(1);
         // draw black
-        for (size_t i = 0; i < screenSize; i+=4) {
-            fbBuf[i]= 0x00;
-            fbBuf[i+1] = 0x00;
-            fbBuf[i+2] = 0x00;
-            fbBuf[i+3] = 0xff;
+        for (size_t i = 0; i < screenSize; i+=pixelSize) {
+            fbBuf[i]= 0b00000000;
+            fbBuf[i+1] = 0b00000000;
         }
         sleep(1);
         // draw white
-        for (size_t i = 0; i < screenSize; i+=4) {
-            fbBuf[i]= 0xff;
-            fbBuf[i+1] = 0xff;
-            fbBuf[i+2] = 0xff;
-            fbBuf[i+3] = 0xff;
+        for (size_t i = 0; i < screenSize; i+=pixelSize) {
+            fbBuf[i]= 0b11111111;
+            fbBuf[i+1] = 0b11111111;
         }
         sleep(1);
+        break;
         // row Rainbow
         for (size_t i = 0; i < vinfo.xres; i++) {
             for (size_t j = 0; j < vinfo.yres; j++) {
