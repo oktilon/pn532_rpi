@@ -19,7 +19,7 @@ struct mxcfb_gbl_alpha {
 #define MXCFB_SET_GBL_ALPHA     _IOW('F', 0x21, struct mxcfb_gbl_alpha)
 
 int main(int argc, char *argv[]) {
-    int fdFb = 0;
+    int fdFb = 0, solidColor = 0;
     struct fb_var_screeninfo vinfo;
     struct fb_fix_screeninfo finfo;
     struct mxcfb_gbl_alpha alpha;
@@ -27,9 +27,24 @@ int main(int argc, char *argv[]) {
     unsigned short pixelSize = 0;
     char *fbBuf = 0;
     char *fbDev = "/dev/fb0";
+    char userColor[16] = {0};
+    size_t len, bit, i;
 
-    if (argc > 1) {
-        fbDev = argv[1];
+    for(i = 1; i < argc; i++) {
+        if (argv[i][0] == '0' || argv[i][0] == '1') {
+            len = strlen(argv[i]);
+            solidColor = 1;
+            for (bit = 0; bit < len && bit < 16 * 8; bit++) {
+                if (argv[i][bit] == '1') {
+                    userColor[bit/8] |= (1 << (7 - (bit % 8)));
+                }
+            }
+            printf("User first 2 colors(HEX): %02x %02x\n", userColor[0], userColor[1]);
+        } else if (argv[i][0] == '/') {
+            fbDev = argv[i];
+        } else {
+            printf("Unknown argument: %s\n", argv[i]);
+        }
     }
 
     // Open the framebuffer device file
@@ -78,7 +93,7 @@ int main(int argc, char *argv[]) {
     screenSize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
     pixelSize = vinfo.bits_per_pixel / 8;
     printf("Screen size in bytes: %ld\n", screenSize);
-    printf("Pixel size in bytes: %ld\n", pixelSize);
+    printf("Pixel size in bytes: %hd\n", pixelSize);
 
     if (pixelSize == 0) {
         printf("Error: bits_per_pixel is zero, cannot calculate pixel size.");
@@ -98,39 +113,13 @@ int main(int argc, char *argv[]) {
     // Disable screen blanking (keep it always on)
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
-    do {
-        // // draw white
-        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
-        //     fbBuf[i]= 0b11111111;
-        //     fbBuf[i+1] = 0b11111111;
-        // }
-        // sleep(1);
-        // // draw red
-        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
-        //     fbBuf[i]= 0b00000000;
-        //     fbBuf[i+1] = 0b00011111;
-        // }
-        // sleep(1);
-        // // draw green
-        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
-        //     fbBuf[i]= 0b00000111;
-        //     fbBuf[i+1] = 0b11100000;
-        // }
-        // sleep(1);
-        // // draw blue
-        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
-        //     fbBuf[i]= 0b11111000;
-        //     fbBuf[i+1] = 0b00000000;
-        // }
-        // sleep(1);
-        // // draw black
-        // for (size_t i = 0; i < screenSize; i+=pixelSize) {
-        //     fbBuf[i]= 0b00000000;
-        //     fbBuf[i+1] = 0b00000000;
-        // }
-        // sleep(1);
-        // break;
-
+    if (solidColor == 1) {
+        for (i = 0; i < screenSize; i+=pixelSize) {
+            for (bit = 0; i < pixelSize; i++) {
+                fbBuf[bit]= userColor[bit];
+            }
+        }
+    } else {
         // row Rainbow
         for (size_t x = 0; x < vinfo.xres; x++) {
             for (size_t y = 0; y < vinfo.yres; y++) {
@@ -138,10 +127,10 @@ int main(int argc, char *argv[]) {
                 size_t colorIx = x / (vinfo.xres/7);
                 char pixel[pixelSize];
                 switch (colorIx) {
-                    case 0: // Red
-                        pixel[0] = 0b00000000;
-                        pixel[1] = 0b00011111;
-                        break;
+                    // case 0: // Red
+                    //     pixel[0] = 0b00000000;
+                    //     pixel[1] = 0b00011111;
+                    //     break;
                     case 1: // Orange
                         pixel[0] = 0b00010100;
                         pixel[1] = 0b11111111;
@@ -175,54 +164,11 @@ int main(int argc, char *argv[]) {
                 fbBuf[offset+1] = pixel[1];
             }
         }
-        break;
-        sleep(1);
-        // column Rainbow
-        for (size_t i = 0; i < vinfo.xres; i++) {
-            for (size_t j = 0; j < vinfo.yres; j++) {
-                size_t index = j / (vinfo.yres/5);
-                switch (index) {
-                case 0:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 1:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 2:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 3:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0xff;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                case 4:
-                    fbBuf[(i + j * vinfo.xres) * 4] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 1] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 2] = 0x00;
-                    fbBuf[(i + j * vinfo.xres) * 4 + 3] = 0xff;
-                    break;
-                default:
-                    break;
-                }
-            }
-        }
-        sleep(1);
-    } while (1);
+    }
 
     // Unmap the framebuffer and close the device file
     munmap(fbBuf, screenSize);
     close(fdFb);
 
-  return 0;
-}   
+    return 0;
+}
