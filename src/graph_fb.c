@@ -114,11 +114,16 @@ int main(int argc, char *argv[]) {
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
     if (solidColor == 1) {
-        printf("Print solid color: %X %X\n", userColor[0], userColor[1]);
+        printf("Put solid color in %ld buffer by %hd bytes:", screenSize, pixelSize);
+        for (bit = 0; bit < pixelSize; bit++) {
+            printf(" %02x", bit, userColor[bit]);
+        }
+        printf("\n");
         for (i = 0; i < screenSize; i+=pixelSize) {
-            for (bit = 0; i < pixelSize; i++) {
-                printf("[%ld]=%02x ", i+bit, userColor[bit]);
-                fbBuf[i+bit]= userColor[bit];
+            for (bit = 0; bit < pixelSize; bit++) {
+                // size_t off = i + bit;
+                // printf("[%ld]=%02x ", i + bit, userColor[bit]);
+                fbBuf[i + bit]= userColor[bit];
             }
         }
     } else {
