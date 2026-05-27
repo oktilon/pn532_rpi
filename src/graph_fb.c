@@ -113,6 +113,11 @@ int main(int argc, char *argv[]) {
     // Disable screen blanking (keep it always on)
     ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
 
+    // FB PIXEL
+    // 76543210 76543210
+    // GGGBBBBB RRRRRGGG
+    // Low green     High green
+
     if (solidColor == 1) {
         printf("Put solid color in %ld buffer by %hd bytes:", screenSize, pixelSize);
         for (bit = 0; bit < pixelSize; bit++) {
@@ -137,11 +142,11 @@ int main(int argc, char *argv[]) {
                 switch (colorIx) {
                     case 0: // Red
                         pixel[0] = 0b00000000;
-                        pixel[1] = 0b00011111;
+                        pixel[1] = 0b11111000;
                         break;
                     case 1: // Orange
-                        pixel[0] = 0b00010100;
-                        pixel[1] = 0b11111111;
+                        pixel[0] = 0b11100010;
+                        pixel[1] = 0b11111100;
                         break;
                     case 2: // Yellow
                         pixel[0] = 0b00000111;
