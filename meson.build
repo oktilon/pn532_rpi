@@ -39,8 +39,12 @@ graph_inc = include_directories([
     'src'
 ])
 
+cc = meson.get_compiler('c')
+# m_dep = cc.find_library('m', required : false)
+
 graph_deps = [
-    dependency('lvgl')
+      dependency('lvgl')
+    , cc.find_library('m', required : false)
 ]
 
 # Create graph_fb executable
