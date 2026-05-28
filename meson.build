@@ -45,6 +45,7 @@ cc = meson.get_compiler('c')
 graph_deps = [
       dependency('lvgl')
     , cc.find_library('m', required : false)
+    , cc.find_library('liblvgl_thorvg')
 ]
 
 # Create graph_fb executable
