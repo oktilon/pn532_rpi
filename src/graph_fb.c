@@ -12,162 +12,78 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 
-#include <lvgl/lvgl.h>
+char userColor[16] = {0};
+char *fbDev = "/dev/fb0";
+int fdFb = 0;
+struct fb_var_screeninfo vinfo;
+struct fb_fix_screeninfo finfo;
+long int screenSize = 0;
+unsigned short pixelSize = 0;
+char *fbBuf = 0;
 
-int simple_fb(char *fbDev, int mode, char *userColor) {
-    int fdFb = 0;
-    struct fb_var_screeninfo vinfo;
-    struct fb_fix_screeninfo finfo;
-    long int screenSize = 0;
-    unsigned short pixelSize = 0;
-    char *fbBuf = 0;
-    size_t bit, i;
+int solid_fill() {
+    long i;
+    unsigned short bit;
 
-
-    // Open the framebuffer device file
-    fdFb = open(fbDev, O_RDWR);
-    if (fdFb == -1) {
-        printf("Cannot open device %s. Error(%d): %m", fbDev, errno);
-        return 1;
-    }
-
-    // Get fixed screen information
-    if (ioctl(fdFb, FBIOGET_FSCREENINFO, &finfo) == -1) {
-        printf("Error reading fixed information from device %s. Error(%d): %m", fbDev, errno);
-        return 2;
-    }
-    printf("Fixed screen info:\n");
-    printf("  id: %s\n", finfo.id);
-    printf("  smem_len: %u\n", finfo.smem_len);
-    printf("  type: %u\n", finfo.type);
-    printf("  type_aux: %u\n", finfo.type_aux);
-    printf("  visual: %u\n", finfo.visual);
-    printf("  xpanstep: %u\n", finfo.xpanstep);
-    printf("  ypanstep: %u\n", finfo.ypanstep);
-    printf("  ywrapstep: %u\n", finfo.ywrapstep);
-    printf("  line_length: %u\n", finfo.line_length);
-
-    // Disable global alpha since we need Pixel Alpha
-    // alpha.enable = 0;
-    // alpha.alpha = 0xff;
-    // ioctl(fdFb, MXCFB_SET_GBL_ALPHA, &alpha);
-
-
-    // Get variable screen information
-    if (ioctl(fdFb, FBIOGET_VSCREENINFO, &vinfo) == -1) {
-        printf("Error reading variable information from device %s. Error(%d): %m", fbDev, errno);
-        return 3;
-    }
-    printf("Variable screen info:\n");
-    printf("  RES: %ux%u\n", vinfo.xres, vinfo.yres);
-    printf("  bpp: %u\n", vinfo.bits_per_pixel);
-    printf("  RED: offset=%u, length=%u, msb_right=%u\n", vinfo.red.offset, vinfo.red.length, vinfo.red.msb_right);
-    printf("  GRN: offset=%u, length=%u, msb_right=%u\n", vinfo.green.offset, vinfo.green.length, vinfo.green.msb_right);
-    printf("  BLU: offset=%u, length=%u, msb_right=%u\n", vinfo.blue.offset, vinfo.blue.length, vinfo.blue.msb_right);
-    printf("  ALP: offset=%u, length=%u, msb_right=%u\n", vinfo.transp.offset, vinfo.transp.length, vinfo.transp.msb_right);
-
-    // Calculate the size of the screen in bytes
-    screenSize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
-    pixelSize = vinfo.bits_per_pixel / 8;
-    printf("Screen size in bytes: %ld\n", screenSize);
-    printf("Pixel size in bytes: %hd\n", pixelSize);
-
-    if (pixelSize == 0) {
-        printf("Error: bits_per_pixel is zero, cannot calculate pixel size.");
-        return 5;
-    }
-
-    // Map the framebuffer to memory
-    fbBuf = (char *)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, fdFb, 0);
-    if ((intptr_t)fbBuf == -1) {
-        printf("Error: failed to map framebuffer device to memory. Error(%d): %m", errno);
-        return 4;
-    }
-
-    // Clear the screen by setting all pixels to black
-    memset(fbBuf, 0, screenSize);
-
-    // Disable screen blanking (keep it always on)
-    ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
-
-    // FB PIXEL
-    // 76543210 76543210
-    // GGGBBBBB RRRRRGGG
-    // Low green     High green
-
-    if (mode == 1) {
-        printf("Put solid color in %ld buffer by %hd bytes:", screenSize, pixelSize);
+    for (i = 0; i < screenSize; i+=pixelSize) {
         for (bit = 0; bit < pixelSize; bit++) {
-            printf(" %02x", userColor[bit]);
-        }
-        printf("\n");
-        for (i = 0; i < screenSize; i+=pixelSize) {
-            for (bit = 0; bit < pixelSize; bit++) {
-                // size_t off = i + bit;
-                // printf("[%ld]=%02x ", i + bit, userColor[bit]);
-                fbBuf[i + bit]= userColor[bit];
-            }
-        }
-    } else {
-        printf("Print rainbow\n");
-        // row Rainbow
-        for (size_t x = 0; x < vinfo.xres; x++) {
-            for (size_t y = 0; y < vinfo.yres; y++) {
-                size_t offset = (x + y * vinfo.xres) * pixelSize;
-                size_t colorIx = x / (vinfo.xres/7);
-                char pixel[pixelSize];
-                switch (colorIx) {
-                    case 0: // Red
-                        pixel[0] = 0b00000000;
-                        pixel[1] = 0b11111000;
-                        break;
-                    case 1: // Orange
-                        pixel[0] = 0b11100010;
-                        pixel[1] = 0b11111100;
-                        break;
-                    case 2: // Yellow
-                        pixel[0] = 0b11100000;
-                        pixel[1] = 0b11111111;
-                        break;
-                    case 3: // Green
-                        pixel[0] = 0b11100000;
-                        pixel[1] = 0b00000111;
-                        break;
-                    case 4: // Cyan
-                        pixel[0] = 0b11111111;
-                        pixel[1] = 0b00000111;
-                        break;
-                    case 5: // Blue
-                        pixel[0] = 0b00011111;
-                        pixel[1] = 0b00000000;
-                        break;
-                    case 6: // Purple
-                        pixel[0] = 0b00011111;
-                        pixel[1] = 0b10011001;
-                        break;
-                    default: // Black
-                        pixel[0] = 0b00000000;
-                        pixel[1] = 0b00000000;
-                        break;
-                }
-                fbBuf[offset] = pixel[0];
-                fbBuf[offset+1] = pixel[1];
-            }
+            fbBuf[i + bit]= userColor[bit];
         }
     }
-
-    // Unmap the framebuffer and close the device file
-    munmap(fbBuf, screenSize);
-    close(fdFb);
-
-    return 0;
 }
 
-int main(int argc, char *argv[]) {
+int rainbow_fill() {
+    size_t bit, i;
+
+    // row Rainbow
+    for (size_t x = 0; x < vinfo.xres; x++) {
+        for (size_t y = 0; y < vinfo.yres; y++) {
+            size_t offset = (x + y * vinfo.xres) * pixelSize;
+            size_t colorIx = x / (vinfo.xres/7);
+            char pixel[pixelSize];
+            switch (colorIx) {
+                case 0: // Red
+                    pixel[0] = 0b00000000;
+                    pixel[1] = 0b11111000;
+                    break;
+                case 1: // Orange
+                    pixel[0] = 0b11100010;
+                    pixel[1] = 0b11111100;
+                    break;
+                case 2: // Yellow
+                    pixel[0] = 0b11100000;
+                    pixel[1] = 0b11111111;
+                    break;
+                case 3: // Green
+                    pixel[0] = 0b11100000;
+                    pixel[1] = 0b00000111;
+                    break;
+                case 4: // Cyan
+                    pixel[0] = 0b11111111;
+                    pixel[1] = 0b00000111;
+                    break;
+                case 5: // Blue
+                    pixel[0] = 0b00011111;
+                    pixel[1] = 0b00000000;
+                    break;
+                case 6: // Purple
+                    pixel[0] = 0b00011111;
+                    pixel[1] = 0b10011001;
+                    break;
+                default: // Black
+                    pixel[0] = 0b00000000;
+                    pixel[1] = 0b00000000;
+                    break;
+            }
+            fbBuf[offset] = pixel[0];
+            fbBuf[offset+1] = pixel[1];
+        }
+    }
+}
+
+int parse_args(int argc, char *argv[]) {
     size_t i, len, bit;
-    int mode = 0;
-    char userColor[16] = {0};
-    char *fbDev = "/dev/fb0";
+    int mode = -1;
 
     for(i = 1; i < argc; i++) {
         if (argv[i][0] == '0' || argv[i][0] == '1') {
@@ -183,27 +99,97 @@ int main(int argc, char *argv[]) {
             fbDev = argv[i];
         } else if (argv[i][0] == 'r') {
             mode = 2;
+        } else if (argv[i][0] == 'c') {
+            mode = 0; // clear
+        } else if (argv[i][0] == 'h') {
+            printf("Usage %s [FB] [BITS] [r] [c] [h]\n"
+                "Possible arguments\n"
+                "  FB       framebuffer device /dev/fbX\n"
+                "  BITS     user color in binary format: 101011111000111000111 (up to 16 bytes)\n"
+                "  r        display rainbow\n"
+                "  c        clear display\n"
+                "  h        show this help\n"
+            );
+            exit(0);
         } else {
             printf("Unknown argument: %s\n", argv[i]);
         }
     }
+    return mode;
+}
 
-    if (mode) {
-        return simple_fb(fbDev, mode, userColor);
-    } else { // lvgl
-        lv_init();
+int main(int argc, char *argv[]) {
+    size_t i, len, bit;
+    int mode = parse_args(argc, argv);
 
-        lv_display_t *disp = lv_linux_fbdev_create();
-        lv_linux_fbdev_set_file(disp, fbDev);
-
-        lv_obj_t *lbl = lv_label_create(lv_screen_active());
-        lv_label_set_text(lbl, "Test text!");
-
-        while(1) {
-            lv_timer_handler();
-            usleep(5);
-        }
+    // Open the framebuffer device file
+    fdFb = open(fbDev, O_RDWR);
+    if (fdFb == -1) {
+        printf("Cannot open device %s. Error(%d): %m", fbDev, errno);
+        return 1;
     }
+
+    // Get fixed screen information
+    if (ioctl(fdFb, FBIOGET_FSCREENINFO, &finfo) == -1) {
+        printf("Error reading fixed information from device %s. Error(%d): %m", fbDev, errno);
+        return 2;
+    }
+    printf("Screen: %s\n", finfo.id);
+    printf("Memory: %u\n", finfo.smem_len);
+    printf("  Line: %u\n", finfo.line_length);
+
+    // Get variable screen information
+    if (ioctl(fdFb, FBIOGET_VSCREENINFO, &vinfo) == -1) {
+        printf("Error reading variable information from device %s. Error(%d): %m", fbDev, errno);
+        return 3;
+    }
+    printf("  Size: %ux%u\n", vinfo.xres, vinfo.yres);
+    printf(" Pixel: %u\n", vinfo.bits_per_pixel);
+    printf("  RGBA: %u/%u%s, %u/%u%s, %u/%u%s, %u/%u%s"
+        , vinfo.red.offset, vinfo.red.length, vinfo.red.msb_right ? "(REV)" : ""
+        , vinfo.green.offset, vinfo.green.length, vinfo.green.msb_right ? "(REV)" : ""
+        , vinfo.blue.offset, vinfo.blue.length, vinfo.blue.msb_right ? "(REV)" : ""
+        , vinfo.transp.offset, vinfo.transp.length, vinfo.transp.msb_right ? "(REV)" : "");
+
+    // Calculate the size of the screen in bytes
+    screenSize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
+    pixelSize = vinfo.bits_per_pixel / 8;
+    printf(" Bytes: %ld\n", screenSize);
+    printf(" Pixel: %hd\n", pixelSize);
+
+    if (pixelSize == 0) {
+        printf("Error: bits_per_pixel is zero, cannot calculate pixel size.");
+        return 5;
+    }
+
+    // Disable screen blanking (keep it always on)
+    ioctl(fdFb, FBIOBLANK, VESA_NO_BLANKING);
+
+
+    // Map the framebuffer to memory
+    fbBuf = (char *)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, fdFb, 0);
+    if ((intptr_t)fbBuf == -1) {
+        printf("Error: failed to map framebuffer device to memory. Error(%d): %m", errno);
+        return 4;
+    }
+
+    // Clear the screen by setting all pixels to black
+    memset(fbBuf, 0, screenSize);
+
+    switch(mode) {
+        case 0:
+            break;
+        case 1:
+            solid_fill();
+            break;
+        case 2:
+            rainbow_fill();
+            break;
+    }
+
+    // Unmap the framebuffer and close the device file
+    munmap(fbBuf, screenSize);
+    close(fdFb);
 
     return 0;
 }

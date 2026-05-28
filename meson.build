@@ -39,19 +39,8 @@ graph_inc = include_directories([
     'src'
 ])
 
-cc = meson.get_compiler('c')
-# m_dep = cc.find_library('m', required : false)
-
-graph_deps = [
-      dependency('lvgl')
-    , cc.find_library('m', required : false)
-    , cc.find_library('liblvgl_thorvg.a', dirs: ['/usr/local/lib/'])
-]
-
 # Create graph_fb executable
 executable(
       'graph_fb'
     , 'src/graph_fb.c'
-    , include_directories: graph_inc
-    , dependencies: graph_deps
 )
