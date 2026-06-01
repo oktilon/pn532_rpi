@@ -179,7 +179,7 @@ void PN532_SPI_Init(PN532* pn532) {
     }
     pinMode(_NSS_PIN, OUTPUT);
     pinMode(_RESET_PIN, OUTPUT);
-    wiringPiSPISetup(_SPI_CHANNEL, 1000000);
+    wiringPiSPISetup(_SPI_CHANNEL, 100000);
     // hardware reset
     pn532->reset();
     // hardware wakeup
