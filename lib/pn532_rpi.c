@@ -47,7 +47,7 @@
 #define _SPI_DATAWRITE                  (0x01)
 #define _SPI_DATAREAD                   (0x03)
 #define _SPI_READY                      (0x01)
-#define _SPI_CHANNEL                    (0)
+#define _SPI_CHANNEL                    (1)
 #define _NSS_PIN                        (4)
 
 #define _I2C_READY                      (0x01)
