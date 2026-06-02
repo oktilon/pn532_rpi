@@ -47,8 +47,8 @@
 #define _SPI_DATAWRITE                  (0x01)
 #define _SPI_DATAREAD                   (0x03)
 #define _SPI_READY                      (0x01)
-#define _SPI_CHANNEL                    (1)
-#define _NSS_PIN                        (18)
+#define _SPI_CHANNEL                    (0)
+#define _NSS_PIN                        (4)
 
 #define _I2C_READY                      (0x01)
 #define _I2C_ADDRESS                    (0x48 >> 1)
@@ -179,7 +179,7 @@ void PN532_SPI_Init(PN532* pn532) {
     }
     pinMode(_NSS_PIN, OUTPUT);
     pinMode(_RESET_PIN, OUTPUT);
-    wiringPiSPISetup(_SPI_CHANNEL, 100000);
+    wiringPiSPISetup(_SPI_CHANNEL, 1000000);
     // hardware reset
     pn532->reset();
     // hardware wakeup
