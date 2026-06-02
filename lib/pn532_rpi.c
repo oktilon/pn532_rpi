@@ -155,11 +155,11 @@ bool PN532_SPI_WaitReady(uint32_t timeout) {
 
 int PN532_SPI_Wakeup(void) {
     // Send any special commands/data to wake up PN532
-    uint8_t data[] = {0x00};
+    uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x00};
     delay(1000);
     digitalWrite(_NSS_PIN, LOW);
     delay(2);  // T_osc_start
-    rpi_spi_rw(data, 1);
+    rpi_spi_rw(data, 5);
     delay(1000);
     return PN532_STATUS_OK;
 }
