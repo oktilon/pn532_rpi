@@ -178,10 +178,10 @@ void PN532_SPI_Init(PN532* pn532) {
     if (wiringPiSetupGpio() < 0) {  // using Broadcom GPIO pin mapping
         return;
     }
-    log_dbg ("Init SPI%d [mode: 0], SS:%d, RST:%d, speed: %d Hz", _SPI_CHANNEL, _NSS_PIN, _RESET_PIN, _SPI_SPEED);
     pinMode(_NSS_PIN, OUTPUT);
     pinMode(_RESET_PIN, OUTPUT);
-    wiringPiSPISetup(_SPI_CHANNEL, _SPI_SPEED);
+    int r = wiringPiSPISetup(_SPI_CHANNEL, _SPI_SPEED);
+    log_dbg ("Init SPI%d, SS:%d, RST:%d, speed: %d Hz, ret = %d", _SPI_CHANNEL, _NSS_PIN, _RESET_PIN, _SPI_SPEED, r);
     // wiringPiSPISetupMode(_SPI_CHANNEL, 500000, 0);
     // hardware reset
     pn532->reset();
