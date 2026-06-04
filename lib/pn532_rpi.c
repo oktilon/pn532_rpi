@@ -176,6 +176,7 @@ void PN532_SPI_Init(PN532* pn532) {
     pn532->trace = PN532_Trace;
     // SPI setup
     if (wiringPiSetupGpio() < 0) {  // using Broadcom GPIO pin mapping
+        log_err ("Failed to setup GPIO");
         return;
     }
     pinMode(_NSS_PIN, OUTPUT);
