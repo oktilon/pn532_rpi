@@ -155,11 +155,11 @@ bool PN532_SPI_WaitReady(uint32_t timeout) {
 
 int PN532_SPI_Wakeup(void) {
     // Send any special commands/data to wake up PN532
-    uint8_t data[] = {0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t data[] = {0x00};
     delay(1000);
     digitalWrite(_NSS_PIN, LOW);
     delay(2);  // T_osc_start
-    rpi_spi_rw(data, 5);
+    rpi_spi_rw(data, 1);
     delay(1000);
     return PN532_STATUS_OK;
 }
@@ -180,8 +180,8 @@ void PN532_SPI_Init(PN532* pn532) {
     log_dbg ("Init SPI%d [mode: 0], SS:%d, RST:%d, speed: 500000 Hz", _SPI_CHANNEL, _NSS_PIN, _RESET_PIN);
     pinMode(_NSS_PIN, OUTPUT);
     pinMode(_RESET_PIN, OUTPUT);
-    // wiringPiSPISetup(_SPI_CHANNEL, 500000);
-    wiringPiSPISetupMode(_SPI_CHANNEL, 500000, 0);
+    wiringPiSPISetup(_SPI_CHANNEL, 1000000);
+    // wiringPiSPISetupMode(_SPI_CHANNEL, 500000, 0);
     // hardware reset
     pn532->reset();
     // hardware wakeup
