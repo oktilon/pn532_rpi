@@ -48,6 +48,7 @@
 #define _SPI_DATAREAD                   (0x03)
 #define _SPI_READY                      (0x01)
 #define _SPI_CHANNEL                    (0)
+#define _SPI_SPEED                      (1000000)
 #define _NSS_PIN                        (4)
 
 #define _I2C_READY                      (0x01)
@@ -177,10 +178,10 @@ void PN532_SPI_Init(PN532* pn532) {
     if (wiringPiSetupGpio() < 0) {  // using Broadcom GPIO pin mapping
         return;
     }
-    log_dbg ("Init SPI%d [mode: 0], SS:%d, RST:%d, speed: 500000 Hz", _SPI_CHANNEL, _NSS_PIN, _RESET_PIN);
+    log_dbg ("Init SPI%d [mode: 0], SS:%d, RST:%d, speed: %d Hz", _SPI_CHANNEL, _NSS_PIN, _RESET_PIN, _SPI_SPEED);
     pinMode(_NSS_PIN, OUTPUT);
     pinMode(_RESET_PIN, OUTPUT);
-    wiringPiSPISetup(_SPI_CHANNEL, 1000000);
+    wiringPiSPISetup(_SPI_CHANNEL, _SPI_SPEED);
     // wiringPiSPISetupMode(_SPI_CHANNEL, 500000, 0);
     // hardware reset
     pn532->reset();
