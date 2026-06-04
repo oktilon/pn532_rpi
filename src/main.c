@@ -22,26 +22,74 @@ typedef struct key_str {
     uint8_t key[6];
 } Key;
 
-int     gLogLevel       = LOG_LEVEL_WARNING; // Logging level
-int     gLogExtended    = 0;                 // Logging with file:line function
-uint8_t gFirstBlock     = 0;
-uint8_t gLastBlock      = 63;
-int     gBlocksCnt      = 0;
-int     gAuthSector     = -1;
-uint8_t *gBlocks        = NULL;
-char    *gBlocksName    = NULL;
-Key     defaultKey      = {.key={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-Key     keys[KEYS_SZ];
-int     gKeyCount       = 0;
+typedef struct access_bits {
+    union {
+        struct {
+            uint8_t i23:1;
+            uint8_t i22:1;
+            uint8_t i21:1;
+            uint8_t i20:1;
+            uint8_t i13:1;
+            uint8_t i12:1;
+            uint8_t i11:1;
+            uint8_t i10:1;
+        } bits;
+        uint8_t b6;
+    } b6; // Access bits byte 6
+    union {
+        struct {
+            uint8_t c13:1;
+            uint8_t c12:1;
+            uint8_t c11:1;
+            uint8_t c10:1;
+            uint8_t i33:1;
+            uint8_t i32:1;
+            uint8_t i31:1;
+            uint8_t i30:1;
+        } bits;
+        uint8_t b7;
+    } b7; // Access bits byte 7
+    union {
+        struct {
+            uint8_t c33:1;
+            uint8_t c32:1;
+            uint8_t c31:1;
+            uint8_t c30:1;
+            uint8_t c23:1;
+            uint8_t c22:1;
+            uint8_t c21:1;
+            uint8_t c20:1;
+        } bits;
+        uint8_t b8;
+    } b8; // Access bits byte 8
+    uint8_t b9; // User data
+} AccessBits;
+
+typedef struct block_data {
+    int block;
+    uint8_t data[16];
+} BlockData;
+
+int       gLogLevel       = LOG_LEVEL_WARNING; // Logging level
+int       gLogExtended    = 0;                 // Logging with file:line function
+int       gBlocksCnt      = 0;
+int       gAuthSector     = -1;
+uint8_t   *gBlocks        = NULL;
+char      *gBlocksName    = NULL;
+Key       defaultKey      = {.key={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+Key       keys[KEYS_SZ];
+int       gKeyCount       = 0;
+BlockData *gWriteData     = NULL;
+uint8_t   gWriteCount     = 0;
 
 // Long command line options
-const struct option longOptions[] = {
+const struct option longOptions[] = { // vqxk:r:w:h
     {"verbose",  no_argument,       0, 'v'},
     {"quiet",    no_argument,       0, 'q'},
     {"extended", no_argument,       0, 'x'},
-    {"keya",     required_argument, 0, 'a'},
-    {"keyb",     required_argument, 0, 'b'},
-    {"list",     required_argument, 0, 'l'},
+    {"key",      required_argument, 0, 'k'},
+    {"read",     required_argument, 0, 'r'},
+    {"write",    required_argument, 0, 'w'},
     {"help",     no_argument,       0, 'h'}
 };
 
@@ -49,9 +97,11 @@ const char *helpOptions[] = {
       "Increase debug level (see below)"
     , "Minimal debug level (see below)"
     , "Extended logs with: file name, line number, function name"
-    , "Custom 6-bytes Key_A in hex format (default is FFFFFFFFFFFF)"
-    , "Custom 6-bytes Key_B in hex format (default is no Key_B)"
+    , "Custom 6-bytes key in hex format (default is FFFFFFFFFFFF)"
     , "Comma separated list of blocks for read, could be interval in format START-END (default 0-63)"
+    , "Data to write in hex format (16 bytes) prefixed by block number\n"
+      "\tseparated by : (e.g. 1:00112233445566778899AABBCCDDEEFF)\n"
+      "\tTrailing bytes will be ignored, missing bytes will be filled with 0"
     , "Show this help"
 };
 
@@ -181,6 +231,46 @@ const char *dumpKeys() {
     return _buf;
 }
 
+void parseWriteData (const char *list) {
+    char *p = strchr (list, ':');
+    if (!p) {
+        log_wrn ("Invalid write data format: %s", list);
+        return;
+    }
+    *p = 0;
+    int blkNum = atoi(list);
+    if (blkNum < 0 || blkNum > 63) {
+        log_wrn ("Invalid block number in write data: %s", list);
+        return;
+    }
+    p++;
+    if (strlen(p) % 2 != 0) {
+        p--;
+        *p = '0';
+    }
+    size_t ix, sz = strlen(p) / 2;
+    if (sz > 16) {
+        sz = 16;
+    }
+
+    gWriteData = (BlockData *) realloc (gWriteData, sizeof(BlockData) * (gWriteCount + 1));
+    if (!gWriteData) {
+        log_wrn ("Memory allocation failed for write data");
+        return;
+    }
+    gWriteData[gWriteCount].block = blkNum;
+    memset(gWriteData[gWriteCount].data, 0, 16);
+    
+    for(ix = 0; ix < sz; ix++) {
+        char dig[3] = {0};
+        dig[0] = p[ix*2];
+        dig[1] = p[ix*2+1];
+        gWriteData[gWriteCount].data[ix] = (uint8_t) strtol(dig, NULL, 16);
+    }
+
+    gWriteCount++;  
+}
+
 void parseBlocks (const char *list)  {
     uint8_t sectors[LIST_BLK_SZ];
     char dig[10] = {0};
@@ -300,7 +390,7 @@ int parseArguments (int argc, char **argv) {
     char bByte[] = { 0, 0, 0 };
     Key key;
 
-    while ((i = getopt_long (argc, argv, "vqxk:s:e:b:h", longOptions, NULL)) != -1) {
+    while ((i = getopt_long (argc, argv, "vqxk:r:w:h", longOptions, NULL)) != -1) {
         switch (i) {
             case 'v': // verbose
                 gLogLevel++;
@@ -317,16 +407,12 @@ int parseArguments (int argc, char **argv) {
                 gLogExtended = 1;
                 break;
 
-            case 's': // start
-                gFirstBlock = atoi(optarg);
-                break;
-
-            case 'e': // end
-                gLastBlock = atoi(optarg);
-                break;
-
-            case 'b': // blocks
+            case 'r': // read
                 parseBlocks(optarg);
+                break;
+
+            case 'w': // write
+                parseWriteData(optarg);
                 break;
 
             case 'h': // help
@@ -362,6 +448,45 @@ int parseArguments (int argc, char **argv) {
     }
 
     return iExit;
+}
+
+int writeBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, BlockData *blk) {
+    uint8_t pn532_error = PN532_ERROR_NONE, uid_len_repeat = 0;
+    int ik;
+
+    int sector = blk->block / 4;
+    if (sector != gAuthSector) {
+        for (ik = 0; ik < gKeyCount; ik++) {
+            log_dbg ("Auth block %hhu [Sector: %d Prev: %d] by key[%d] %s...", blk->block, sector, gAuthSector, ik, dumpHexData(keys[ik].key, 6, 0));
+            pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
+                    blk->block, MIFARE_CMD_AUTH_A, keys[ik].key);
+
+            if (pn532_error == PN532_ERROR_NONE) break;
+            log_wrn ("Auth block %hhu error 0x%hhX (%s)", blk->block, pn532_error, pn532_errorstr(pn532_error));
+            sleep(1);
+            uid_len_repeat = PN532_ReadPassiveTarget(pReader, uid, PN532_MIFARE_ISO14443A, 1000);
+            if (uid_len_repeat != PN532_STATUS_ERROR) {
+                continue;
+            }
+            break;
+        }
+
+        if (pn532_error != PN532_ERROR_NONE) {
+            gAuthSector = -1;
+            return pn532_error;
+        }
+
+        gAuthSector = sector;
+    }
+
+    pn532_error = PN532_MifareClassicWriteBlock(pReader, blk->data, blk->block);
+    if (pn532_error != PN532_ERROR_NONE) {
+        log_wrn ("Write block %hhu error 0x%X (%s)", blk->block, pn532_error, pn532_errorstr(pn532_error));
+        return pn532_error;
+    }
+
+    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s written", blk->block, dumpHexData(blk->data, 16, 1));
+    return PN532_ERROR_NONE;
 }
 
 
@@ -413,7 +538,7 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
 }
 
 int main(int argc, char** argv) {
-    uint8_t buff[255], doRead = 1, block_number;
+    uint8_t buff[255], doLoop = 1, block_number;
     uint8_t uid[MIFARE_UID_MAX_LENGTH];
     int32_t uid_len = 0, ix;
     PN532 pn532;
@@ -426,29 +551,16 @@ int main(int argc, char** argv) {
         memcpy(&(keys[0]), &defaultKey, sizeof(Key));
         gKeyCount++;
     }
-    if (!gBlocks) {
-        if (gLastBlock > 64) gLastBlock = 63;
-        if (gFirstBlock > gLastBlock) {
-            log_err ("Wrong interval [%d - %d]", gFirstBlock, gLastBlock);
-            return -1;
-        }
-        char blkName[64] = {0};
-        gBlocksCnt = gLastBlock - gFirstBlock + 1;
-        gBlocks = malloc (gBlocksCnt + 1);
-        memset (gBlocks, 0, gBlocksCnt + 1);
-        uint8_t bl = gFirstBlock;
-        for (int i = 0; i < gBlocksCnt; i++) {
-            gBlocks[i] = bl++;
-        }
-        sprintf(blkName, "%d-%d", gFirstBlock, gLastBlock);
-        gBlocksName = strdup (blkName);
+    if (!gBlocks && gWriteCount == 0) {
+        log_err ("No blocks specified for read or write, use -r or -w options");
+        return -1;
     }
 
     log_all ("App %s version %s log level %s with keys[%d]: %s", PROJECT, VERSION, logLevelHeaders[gLogLevel], gKeyCount, dumpKeys());
 
     PN532_SPI_Init(&pn532);
     // PN532_I2C_Init(&pn532);
-    //PN532_UART_Init(&pn532);
+    // PN532_UART_Init(&pn532);
     if (PN532_GetFirmwareVersion(&pn532, buff) == PN532_STATUS_OK) {
         log_inf ("Found PN532 with firmware version: %hhu.%hhu", buff[1], buff[2]);
     } else {
@@ -456,26 +568,53 @@ int main(int argc, char** argv) {
         return -1;
     }
     PN532_SamConfiguration(&pn532);
-    while (doRead) {
-        log_all ("Scan your RFID/NFC card...");
-        memset (uid, 0, MIFARE_UID_MAX_LENGTH);
-        while (doRead) {
-            // Check if a card is available to read
-            gAuthSector = -1;
-            uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
-            if (uid_len != PN532_STATUS_ERROR) {
-                log_all ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
-                break;
+    if (gWriteCount > 0) {
+        log_inf ("Just dump write data:");
+        for (ix = 0; ix < gWriteCount; ix++) {
+            log_inf ("BLK %02d: %s", gWriteData[ix].block, dumpHexData(gWriteData[ix].data, 16, 1));
+        }
+        while (doLoop) {
+            log_all ("Attach your RFID/NFC card...");
+            memset (uid, 0, MIFARE_UID_MAX_LENGTH);
+            while (doLoop) {
+                // Check if a card is available to read
+                gAuthSector = -1;
+                uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
+                if (uid_len != PN532_STATUS_ERROR) {
+                    log_all ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
+                    break;
+                }
+                // Write data
+                for (ix = 0; ix < gWriteCount; ix++) {
+                    BlockData *blk = &gWriteData[ix];
+                    if (writeBlock(&pn532, uid, uid_len, blk) == PN532_ERROR_NONE) {
+                        log_inf ("BLK %02d: written", gWriteData[ix].block);
+                    }
+                }
             }
         }
-        if (!doRead) break;
-        log_inf ("Reading blocks [%s]...", gBlocksName);
-        for (ix = 0; ix < gBlocksCnt; ix ++) {
-            block_number = gBlocks[ix];
-            if (readBlock (&pn532, uid, uid_len, block_number) == -2)
-                break;
+    } else {
+        while (doLoop) {
+            log_all ("Scan your RFID/NFC card...");
+            memset (uid, 0, MIFARE_UID_MAX_LENGTH);
+            while (doLoop) {
+                // Check if a card is available to read
+                gAuthSector = -1;
+                uid_len = PN532_ReadPassiveTarget(&pn532, uid, PN532_MIFARE_ISO14443A, 1000);
+                if (uid_len != PN532_STATUS_ERROR) {
+                    log_all ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
+                    break;
+                }
+            }
+            if (!doLoop) break;
+            log_inf ("Reading blocks [%s]...", gBlocksName);
+            for (ix = 0; ix < gBlocksCnt; ix ++) {
+                block_number = gBlocks[ix];
+                if (readBlock (&pn532, uid, uid_len, block_number) == -2)
+                    break;
+            }
+            sleep(3);
         }
-        sleep(3);
     }
 
     return 0;
