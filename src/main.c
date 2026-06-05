@@ -244,21 +244,21 @@ const char *dumpKeys() {
 
 const char *trailerAccess(uint8_t c1, uint8_t c2, uint8_t c3) {
     if(c1 == 0 && c2 == 0 && c3 == 0) {
-        return "wA=A,  rACC=A,        rwB=A";
+        return "\033[96mkA=wA\033[0m, \033[31mkB=rwA,\033[0m \033[92mAccess=rA\033[0m";
     } else if(c1 == 0 && c2 == 1 && c3 == 0) {
-        return "  -A,  rACC=A,         rB=A";
+        return "\033[92mkA-\033[0m, \033[91mkB=rA,\033[0m \033[92mAccess=rA\033[0m";
     } else if(c1 == 1 && c2 == 0 && c3 == 0) {
-        return "wA=B,  rACC=AB,        wB=B";
+        return "\033[96mkA=wB\033[0m, \033[96mkB=wB,\033[0m \033[92mAccess=rAB\033[0m";
     } else if(c1 == 1 && c2 == 1 && c3 == 0) {
-        return "  -A,  rACC=AB,          -B";
+        return "\033[92mkA-\033[0m, \033[92mkB-,\033[0m \033[92mAccess=rAB\033[0m";
     } else if(c1 == 0 && c2 == 0 && c3 == 1) {
-        return "wA=A, rwACC=A,        rwB=A (*)";
+        return "\033[96mkA=wA\033[0m, \033[31mkB=rwA,\033[0m \033[93mAccess=rwA\033[0m (*)";
     } else if(c1 == 0 && c2 == 1 && c3 == 1) {
-        return "wA=B,  rACC=AB(w=B),   wB=B";
+        return "\033[96mkA=wA\033[0m, \033[96mkB=wB,\033[0m \033[93mAccess=rwA\033[0m (*)";
     } else if(c1 == 1 && c2 == 0 && c3 == 1) {
-        return "  -A,  rACC=AB(w=B),     -B";
+        return "\033[92mkA-\033[0m, \033[92mkB-,\033[0m \033[92mAccess=rAB\033[0m";
     } else if(c1 == 1 && c2 == 1 && c3 == 1) {
-        return "  -A,  rACC=AB,          -B";
+        return "\033[92mkA-\033[0m, \033[92mkB-,\033[0m \033[92mAccess=rAB\033[0m";
     }
     return "ERR";
 }
@@ -298,9 +298,9 @@ int dumpAccessBits(AccessBits *ab, uint8_t blk) {
         ab->b7.bits.i31 == !ab->b8.bits.c31 &&
         ab->b7.bits.i30 == !ab->b8.bits.c30
     ) {
-        log_all("\033[90mBLK \033[32m%02d:\033[0m %d%d%d %s", blk - 3, ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30,blockAccess(ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30));
-        log_all("\033[90mBLK \033[32m%02d:\033[0m %d%d%d %s", blk - 2, ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31, blockAccess(ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31));
-        log_all("\033[90mBLK \033[32m%02d:\033[0m %d%d%d %s", blk - 1, ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32, blockAccess(ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32));
+        log_all("\033[90mACC \033[32m%02d:\033[0m %d%d%d %s", blk - 3, ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30,blockAccess(ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30));
+        log_all("\033[90mACC \033[32m%02d:\033[0m %d%d%d %s", blk - 2, ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31, blockAccess(ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31));
+        log_all("\033[90mACC \033[32m%02d:\033[0m %d%d%d %s", blk - 1, ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32, blockAccess(ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32));
         log_all("\033[90mTRL \033[32m%02d:\033[0m %d%d%d %s", blk, ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33, trailerAccess(ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33));
     } else {
         log_err("Invalid access bits:\n"
