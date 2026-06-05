@@ -604,10 +604,11 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         ab.b6.b6 = buff[6];
         ab.b7.b7 = buff[7];
         ab.b8.b8 = buff[8];
+        log_trc ("Access bits: b6=%02hhX b7=%02hhX b8=%02hhX", ab.b6.b6, ab.b7.b7, ab.b8.b8);
         parseAccessBits(&ab, block_number, accessInfo);
     }
 
-    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s%s", block_number, dumpHexData(buff, 16, 1), accessInfo);
+    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s >>%s", block_number, dumpHexData(buff, 16, 1), accessInfo);
     return PN532_ERROR_NONE;
 }
 
