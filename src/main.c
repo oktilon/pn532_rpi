@@ -65,6 +65,17 @@ typedef struct access_bits {
     uint8_t b9; // User data
 } AccessBits;
 
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  ((byte) & 0x80 ? '1' : '0'), \
+  ((byte) & 0x40 ? '1' : '0'), \
+  ((byte) & 0x20 ? '1' : '0'), \
+  ((byte) & 0x10 ? '1' : '0'), \
+  ((byte) & 0x08 ? '1' : '0'), \
+  ((byte) & 0x04 ? '1' : '0'), \
+  ((byte) & 0x02 ? '1' : '0'), \
+  ((byte) & 0x01 ? '1' : '0') 
+
 typedef struct block_data {
     int block;
     uint8_t data[16];
@@ -619,7 +630,8 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         ab.b6.b6 = buff[6];
         ab.b7.b7 = buff[7];
         ab.b8.b8 = buff[8];
-        log_trc ("Access bits: b6=%02hhX b7=%02hhX b8=%02hhX", ab.b6.b6, ab.b7.b7, ab.b8.b8);
+        log_trc ("Access bits: b6=%02hhX["BYTE_TO_BINARY_PATTERN"], b7=%02hhX["BYTE_TO_BINARY_PATTERN"], b8=%02hhX["BYTE_TO_BINARY_PATTERN"]"
+            , ab.b6.b6, BYTE_TO_BINARY(ab.b6.b6), ab.b7.b7, BYTE_TO_BINARY(ab.b7.b7), ab.b8.b8, BYTE_TO_BINARY(ab.b8.b8));
         parseAccessBits(&ab, block_number, accessInfo);
     }
 
