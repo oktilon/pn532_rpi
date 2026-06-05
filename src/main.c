@@ -284,7 +284,7 @@ const char *blockAccess(uint8_t c1, uint8_t c2, uint8_t c3) {
     return "ERR";
 }
 
-int parseAccessBits(AccessBits *ab, uint8_t blk,  char *str) {
+int dumpAccessBits(AccessBits *ab, uint8_t blk) {
     if (ab->b6.bits.i13 == !ab->b7.bits.c13 &&
         ab->b6.bits.i12 == !ab->b7.bits.c12 &&
         ab->b6.bits.i11 == !ab->b7.bits.c11 &&
@@ -298,11 +298,10 @@ int parseAccessBits(AccessBits *ab, uint8_t blk,  char *str) {
         ab->b7.bits.i31 == !ab->b8.bits.c31 &&
         ab->b7.bits.i30 == !ab->b8.bits.c30
     ) {
-        return snprintf(str, 256, " (b%d=%s, b%d=%s, b%d=%s, tr%d=%s)"
-            , blk - 3, blockAccess(ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30)
-            , blk - 2, blockAccess(ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31)
-            , blk - 1, blockAccess(ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32)
-            , blk, trailerAccess(ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33));
+        log_all("\033[90mBLK \033[32m%02d:\033[0m %d%d%d %s", blk - 3, ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30,blockAccess(ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30));
+        log_all("\033[90mBLK \033[32m%02d:\033[0m %d%d%d %s", blk - 2, ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31, blockAccess(ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31));
+        log_all("\033[90mBLK \033[32m%02d:\033[0m %d%d%d %s", blk - 1, ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32, blockAccess(ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32));
+        log_all("\033[90mTRL \033[32m%02d:\033[0m %d%d%d %s", blk, ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33, trailerAccess(ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33));
     } else {
         log_err("Invalid access bits:\n"
             "BLK0: C1=%d C2=%d C3=%d [I1=%d I2=%d I3=%d]\n"
@@ -626,19 +625,14 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         return pn532_error;
     }
 
+    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s", block_number, dumpHexData(buff, 16, 1));
     if (block_number % 4 == 3) {
         ab.b6.b6 = buff[6];
         ab.b7.b7 = buff[7];
         ab.b8.b8 = buff[8];
-        log_trc ("Access bits: b6=%02hhX["BYTE_TO_BINARY_PATTERN"], b7=%02hhX["BYTE_TO_BINARY_PATTERN"], b8=%02hhX["BYTE_TO_BINARY_PATTERN"]"
-            , ab.b6.b6, BYTE_TO_BINARY(ab.b6.b6), ab.b7.b7, BYTE_TO_BINARY(ab.b7.b7), ab.b8.b8, BYTE_TO_BINARY(ab.b8.b8));
-        log_trc ("B6: I23=%d I22=%d I21=%d I20=%d I13=%d I12=%d I11=%d I10=%d"
-            , ab.b6.bits.i23, ab.b6.bits.i22, ab.b6.bits.i21, ab.b6.bits.i20
-            , ab.b6.bits.i13, ab.b6.bits.i12, ab.b6.bits.i11, ab.b6.bits.i10);
-        parseAccessBits(&ab, block_number, accessInfo);
+        dumpAccessBits(&ab, block_number);
     }
 
-    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s >>%s", block_number, dumpHexData(buff, 16, 1), accessInfo);
     return PN532_ERROR_NONE;
 }
 
