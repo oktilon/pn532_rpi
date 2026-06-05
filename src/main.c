@@ -84,17 +84,18 @@ uint8_t   gWriteCount     = 0;
 
 // Long command line options
 const struct option longOptions[] = { // vqxk:r:w:h
+    {"help",     no_argument,       0, 'h'},
     {"verbose",  no_argument,       0, 'v'},
     {"quiet",    no_argument,       0, 'q'},
     {"extended", no_argument,       0, 'x'},
     {"key",      required_argument, 0, 'k'},
     {"read",     required_argument, 0, 'r'},
-    {"write",    required_argument, 0, 'w'},
-    {"help",     no_argument,       0, 'h'}
+    {"write",    required_argument, 0, 'w'}
 };
 
 const char *helpOptions[] = {
-      "Increase debug level (see below)"
+      "Show this help"
+    , "Increase debug level (see below)"
     , "Minimal debug level (see below)"
     , "Extended logs with: file name, line number, function name"
     , "Custom 6-bytes key in hex format (default is FFFFFFFFFFFF)"
@@ -102,7 +103,6 @@ const char *helpOptions[] = {
     , "Data to write in hex format (16 bytes) prefixed by block number\n"
       "\tseparated by : (e.g. 1:00112233445566778899AABBCCDDEEFF)\n"
       "\tTrailing bytes will be ignored, missing bytes will be filled with 0"
-    , "Show this help"
 };
 
 const char *logLevelHeaders[] = {
@@ -183,8 +183,8 @@ const char *pn532_errorstr(uint8_t error) {
 }
 
 void showHelp(char *cmd) {
-    printf ("Usage: %s [OPTIONS] [-a KEY_A] [-b KEY_B] [-b BLOCKS]\n", cmd);
-    printf (" where:\n");
+    printf ("Usage: %s [OPTIONS] [-k KEY] (-r BLOCKS | -w BLK:DATA) \n", cmd);
+    printf (" where OPTIONS are:\n");
     for (int i = 0; i < sizeof(longOptions)/sizeof(struct option); i++) {
         printf ("  -%c, --%-10s %s\n", longOptions[i].val, longOptions[i].name, helpOptions[i]);
     }
@@ -229,6 +229,71 @@ const char *dumpKeys() {
         }
     }
     return _buf;
+}
+
+const char *trailerAccess(uint8_t c1, uint8_t c2, uint8_t c3) {
+    if(c1 == 0 && c2 == 0 && c3 == 0) {
+        return "wA=A,  rACC=A,        rwB=A";
+    } else if(c1 == 0 && c2 == 1 && c3 == 0) {
+        return "  -A,  rACC=A,         rB=A";
+    } else if(c1 == 1 && c2 == 0 && c3 == 0) {
+        return "wA=B,  rACC=AB,        wB=B";
+    } else if(c1 == 1 && c2 == 1 && c3 == 0) {
+        return "  -A,  rACC=AB,          -B";
+    } else if(c1 == 0 && c2 == 0 && c3 == 1) {
+        return "wA=A, rwACC=A,        rwB=A (*)";
+    } else if(c1 == 0 && c2 == 1 && c3 == 1) {
+        return "wA=B,  rACC=AB(w=B),   wB=B";
+    } else if(c1 == 1 && c2 == 0 && c3 == 1) {
+        return "  -A,  rACC=AB(w=B),     -B";
+    } else if(c1 == 1 && c2 == 1 && c3 == 1) {
+        return "  -A,  rACC=AB,          -B";
+    }
+    return "ERR";
+}
+
+const char *blockAccess(uint8_t c1, uint8_t c2, uint8_t c3) {
+    if(c1 == 0 && c2 == 0 && c3 == 0) {
+        return "r=AB, w=AB, inc=AB, dec=AB (*)";
+    } else if(c1 == 0 && c2 == 1 && c3 == 0) {
+        return "r=AB, w-,   inc-,   dec-";
+    } else if(c1 == 1 && c2 == 0 && c3 == 0) {
+        return "r=AB, w=B,  inc-,   dec-";
+    } else if(c1 == 1 && c2 == 1 && c3 == 0) {
+        return "r=AB, w=B,  inc=B,  dec=B  (val)";
+    } else if(c1 == 0 && c2 == 0 && c3 == 1) {
+        return "r=AB, w-,   inc-,   dec=AB (val)";
+    } else if(c1 == 0 && c2 == 1 && c3 == 1) {
+        return "r=B,  w=B,  inc-,   dec-";
+    } else if(c1 == 1 && c2 == 0 && c3 == 1) {
+        return "r=B,  w-,   inc-,   dec-";
+    } else if(c1 == 1 && c2 == 1 && c3 == 1) {
+        return "r-,   w-,   inc-,   dec-";
+    }
+    return "ERR";
+}
+
+int parseAccessBits(AccessBits *ab, uint8_t blk,  char *str) {
+    if (ab->b6.bits.i13 == !ab->b7.bits.c13 &&
+        ab->b6.bits.i12 == !ab->b7.bits.c12 &&
+        ab->b6.bits.i11 == !ab->b7.bits.c11 &&
+        ab->b6.bits.i10 == !ab->b7.bits.c10 &&
+        ab->b6.bits.i23 == !ab->b8.bits.c23 &&
+        ab->b6.bits.i22 == !ab->b8.bits.c22 &&
+        ab->b6.bits.i21 == !ab->b8.bits.c21 &&
+        ab->b6.bits.i20 == !ab->b8.bits.c20 &&
+        ab->b7.bits.i33 == !ab->b8.bits.c33 &&
+        ab->b7.bits.i32 == !ab->b8.bits.c32 &&
+        ab->b7.bits.i31 == !ab->b8.bits.c31 &&
+        ab->b7.bits.i30 == !ab->b8.bits.c30
+    ) {
+        return snprintf(str, 256, " (b%d=%s, b%d=%s, b%d=%s, tr%d=%s)"
+            , blk - 3, blockAccess(ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30)
+            , blk - 2, blockAccess(ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31)
+            , blk - 1, blockAccess(ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32)
+            , blk, trailerAccess(ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33));
+    }
+    return 0;
 }
 
 void parseWriteData (const char *list) {
@@ -493,6 +558,8 @@ int writeBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, BlockData *blk) {
 int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_number) {
     uint8_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255], uid_len_repeat = 0;
+    char accessInfo[256] = {0};
+    AccessBits ab;
     int ik;
 
     int sector = block_number / 4;
@@ -533,7 +600,14 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         return pn532_error;
     }
 
-    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s", block_number, dumpHexData(buff, 16, 1));
+    if (block_number % 4 == 3) {
+        ab.b6.b6 = buff[6];
+        ab.b7.b7 = buff[7];
+        ab.b8.b8 = buff[8];
+        parseAccessBits(&ab, block_number, accessInfo);
+    }
+
+    log_all ("\033[90mBLK \033[32m%02d:\033[0m %s%s", block_number, dumpHexData(buff, 16, 1), accessInfo);
     return PN532_ERROR_NONE;
 }
 
@@ -569,12 +643,8 @@ int main(int argc, char** argv) {
     }
     PN532_SamConfiguration(&pn532);
     if (gWriteCount > 0) {
-        log_inf ("Just dump write data:");
-        for (ix = 0; ix < gWriteCount; ix++) {
-            log_inf ("BLK %02d: %s", gWriteData[ix].block, dumpHexData(gWriteData[ix].data, 16, 1));
-        }
         while (doLoop) {
-            log_all ("Attach your RFID/NFC card...");
+            log_all ("Attach your RFID/NFC card for WRITE...");
             memset (uid, 0, MIFARE_UID_MAX_LENGTH);
             while (doLoop) {
                 // Check if a card is available to read
@@ -588,7 +658,7 @@ int main(int argc, char** argv) {
                 for (ix = 0; ix < gWriteCount; ix++) {
                     BlockData *blk = &gWriteData[ix];
                     if (writeBlock(&pn532, uid, uid_len, blk) == PN532_ERROR_NONE) {
-                        log_inf ("BLK %02d: written", gWriteData[ix].block);
+                        log_inf ("BLK %02d: %s WRITTEN", gWriteData[ix].block, dumpHexData(gWriteData[ix].data, 16, 1));
                     }
                 }
             }
