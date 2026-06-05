@@ -292,6 +292,21 @@ int parseAccessBits(AccessBits *ab, uint8_t blk,  char *str) {
             , blk - 2, blockAccess(ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31)
             , blk - 1, blockAccess(ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32)
             , blk, trailerAccess(ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33));
+    } else {
+        log_err("Invalid access bits:\n"
+            "BLK0: C1=%d C2=%d C3=%d [I1=%d I2=%d I3=%d]\n"
+            "BLK1: C1=%d C2=%d C3=%d [I1=%d I2=%d I3=%d]\n"
+            "BLK2: C1=%d C2=%d C3=%d [I1=%d I2=%d I3=%d]\n"
+            "TRL3: C1=%d C2=%d C3=%d [I1=%d I2=%d I3=%d]\n",
+            ab->b7.bits.c10, ab->b8.bits.c20, ab->b8.bits.c30,
+            ab->b6.bits.i10, ab->b6.bits.i20, ab->b7.bits.i30,
+            ab->b7.bits.c11, ab->b8.bits.c21, ab->b8.bits.c31,
+            ab->b6.bits.i11, ab->b6.bits.i21, ab->b7.bits.i31,
+            ab->b7.bits.c12, ab->b8.bits.c22, ab->b8.bits.c32,
+            ab->b6.bits.i12, ab->b6.bits.i22, ab->b7.bits.i32,
+            ab->b7.bits.c13, ab->b8.bits.c23, ab->b8.bits.c33,
+            ab->b6.bits.i13, ab->b6.bits.i23, ab->b7.bits.i33
+        );
     }
     return 0;
 }
