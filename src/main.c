@@ -25,40 +25,40 @@ typedef struct key_str {
 typedef struct access_bits {
     union {
         struct {
-            uint8_t i23:1;
-            uint8_t i22:1;
-            uint8_t i21:1;
-            uint8_t i20:1;
-            uint8_t i13:1;
-            uint8_t i12:1;
-            uint8_t i11:1;
             uint8_t i10:1;
+            uint8_t i11:1;
+            uint8_t i12:1;
+            uint8_t i13:1;
+            uint8_t i20:1;
+            uint8_t i21:1;
+            uint8_t i22:1;
+            uint8_t i23:1;
         } bits;
         uint8_t b6;
     } b6; // Access bits byte 6
     union {
         struct {
-            uint8_t c13:1;
-            uint8_t c12:1;
-            uint8_t c11:1;
-            uint8_t c10:1;
-            uint8_t i33:1;
-            uint8_t i32:1;
-            uint8_t i31:1;
             uint8_t i30:1;
+            uint8_t i31:1;
+            uint8_t i32:1;
+            uint8_t i33:1;
+            uint8_t c10:1;
+            uint8_t c11:1;
+            uint8_t c12:1;
+            uint8_t c13:1;
         } bits;
         uint8_t b7;
     } b7; // Access bits byte 7
     union {
         struct {
-            uint8_t c33:1;
-            uint8_t c32:1;
-            uint8_t c31:1;
-            uint8_t c30:1;
-            uint8_t c23:1;
-            uint8_t c22:1;
-            uint8_t c21:1;
             uint8_t c20:1;
+            uint8_t c21:1;
+            uint8_t c22:1;
+            uint8_t c23:1;
+            uint8_t c30:1;
+            uint8_t c31:1;
+            uint8_t c32:1;
+            uint8_t c33:1;
         } bits;
         uint8_t b8;
     } b8; // Access bits byte 8
