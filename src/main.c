@@ -632,6 +632,9 @@ int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_numbe
         ab.b8.b8 = buff[8];
         log_trc ("Access bits: b6=%02hhX["BYTE_TO_BINARY_PATTERN"], b7=%02hhX["BYTE_TO_BINARY_PATTERN"], b8=%02hhX["BYTE_TO_BINARY_PATTERN"]"
             , ab.b6.b6, BYTE_TO_BINARY(ab.b6.b6), ab.b7.b7, BYTE_TO_BINARY(ab.b7.b7), ab.b8.b8, BYTE_TO_BINARY(ab.b8.b8));
+        log_trc ("B6: I23=%d I22=%d I21=%d I20=%d I13=%d I12=%d I11=%d I10=%d"
+            , ab.b6.bits.i23, ab.b6.bits.i22, ab.b6.bits.i21, ab.b6.bits.i20
+            , ab.b6.bits.i13, ab.b6.bits.i12, ab.b6.bits.i11, ab.b6.bits.i10);
         parseAccessBits(&ab, block_number, accessInfo);
     }
 
