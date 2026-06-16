@@ -737,13 +737,15 @@ int readMadBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_nu
     uint8_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255];
 
-    log_dbg ("Auth MAD sector by key[%d] %s...", gReadMADKey, dumpHexData(keys[gReadMADKey].key, 6, 0));
-    pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
-            block_number, MIFARE_CMD_AUTH_A, keys[gReadMADKey].key);
+    if (gAuthSector != 0) {
+        log_dbg ("Auth MAD sector by key[%d] %s...", gReadMADKey, dumpHexData(keys[gReadMADKey].key, 6, 0));
+        pn532_error = PN532_MifareClassicAuthenticateBlock(pReader, uid, uid_len,
+                block_number, MIFARE_CMD_AUTH_A, keys[gReadMADKey].key);
 
-    if (pn532_error != PN532_ERROR_NONE) {
-        log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
-        return -1;
+        if (pn532_error != PN532_ERROR_NONE) {
+            log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
+            return -1;
+        }
     }
 
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
