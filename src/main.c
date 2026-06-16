@@ -374,8 +374,8 @@ void dumpMADSector() {
     for (aid = 1; aid < 16; aid++) {
         ib = aid > 7 ? 1 : 0;
         ix = aid * 2 - ib * 16;
-        app = gMADData[ib].data[ix];
-        cluster = gMADData[ib].data[ix + 1];
+        app = gMADData[ib+1].data[ix];
+        cluster = gMADData[ib+1].data[ix + 1];
         memset(desc, 0, 64);
         switch(cluster) {
             case 0: // Administration sector
