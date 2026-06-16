@@ -92,6 +92,7 @@ Key       keys[KEYS_SZ];
 int       gKeyCount       = 0;
 BlockData *gWriteData     = NULL;
 uint8_t   gWriteCount     = 0;
+int       gReadMADKey     = -1;
 
 // Long command line options
 const struct option longOptions[] = { // vqxk:r:w:h
@@ -101,7 +102,8 @@ const struct option longOptions[] = { // vqxk:r:w:h
     {"extended", no_argument,       0, 'x'},
     {"key",      required_argument, 0, 'k'},
     {"read",     required_argument, 0, 'r'},
-    {"write",    required_argument, 0, 'w'}
+    {"write",    required_argument, 0, 'w'},
+    {"mad",      optional_argument, 0, 'm'}
 };
 
 const char *helpOptions[] = {
@@ -466,6 +468,39 @@ void parseBlocks (const char *list)  {
     }
 }
 
+int addKey(char *arg) {
+    int ret = -1;
+    size_t s, ix, ofs;
+    long pH, pL;
+    uint8_t v;
+    char bByte[] = { 0, 0, 0 };
+    Key key;
+
+    memset (&key, 0, sizeof(key));
+    s = strlen(arg);
+    if (s > 12) {
+        log_wrn ("Key size(%ld) is too long", s);
+    }
+    for (ix = 0; ix < 6; ix++) {
+        ofs = 5-ix;
+        pL = s - ix * 2 - 1;
+        pH = pL - 1;
+        bByte[0] = pH >= 0 ? arg[pH] : '0';
+        bByte[1] = pL >= 0 ? arg[pL] : '0';
+        v = (uint8_t) strtol (bByte, NULL, 16);
+        key.key[ofs] = v;
+    }
+    if (gKeyCount < (KEYS_SZ - 1)) {
+        ret = gKeyCount;
+        memcpy(keys[gKeyCount++].key, key.key, 6);
+    } else {
+        log_wrn ("Key count exceeded %d skip: %s", KEYS_SZ, arg);
+    }
+
+    return ret;
+}
+
+
 /**
  * @brief Parse cmdline arguments
  *
@@ -474,11 +509,7 @@ void parseBlocks (const char *list)  {
  */
 int parseArguments (int argc, char **argv) {
     int i, iExit = 0;
-    size_t s, ix, ofs;
-    long pH, pL;
-    uint8_t v;
-    char bByte[] = { 0, 0, 0 };
-    Key key;
+    
 
     while ((i = getopt_long (argc, argv, "vqxk:r:w:h", longOptions, NULL)) != -1) {
         switch (i) {
@@ -510,26 +541,13 @@ int parseArguments (int argc, char **argv) {
                 iExit = 1;
                 break;
 
+            case 'm': // MAD (MiFare Application Directory)
+                printf("MAD key: %s\n", optarg);
+                gReadMADKey = addKey(optarg);
+                break;
+
             case 'k': // key
-                memset (key.key, 0, 6);
-                s = strlen(optarg);
-                if (s > 12) {
-                    log_wrn ("Key size(%ld) is too long", s);
-                }
-                for (ix = 0; ix < 6; ix++) {
-                    ofs = 5-ix;
-                    pL = s - ix * 2 - 1;
-                    pH = pL - 1;
-                    bByte[0] = pH >= 0 ? optarg[pH] : '0';
-                    bByte[1] = pL >= 0 ? optarg[pL] : '0';
-                    v = (uint8_t) strtol (bByte, NULL, 16);
-                    key.key[ofs] = v;
-                }
-                if (gKeyCount < (KEYS_SZ - 1)) {
-                    memcpy(keys[gKeyCount++].key, key.key, 6);
-                } else {
-                    log_wrn ("Key count exceeded %d skip: %s", KEYS_SZ, optarg);
-                }
+                addKey(optarg);
                 break;
 
             default:
@@ -583,7 +601,6 @@ int writeBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, BlockData *blk) {
 int readBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_number) {
     uint8_t pn532_error = PN532_ERROR_NONE;
     uint8_t buff[255], uid_len_repeat = 0;
-    char accessInfo[256] = {0};
     AccessBits ab;
     int ik;
 
