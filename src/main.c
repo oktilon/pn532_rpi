@@ -511,7 +511,7 @@ int parseArguments (int argc, char **argv) {
     int i, iExit = 0;
     
 
-    while ((i = getopt_long (argc, argv, "vqxk:r:w:h", longOptions, NULL)) != -1) {
+    while ((i = getopt_long (argc, argv, "vqxk:r:w:hm::", longOptions, NULL)) != -1) {
         switch (i) {
             case 'v': // verbose
                 gLogLevel++;
