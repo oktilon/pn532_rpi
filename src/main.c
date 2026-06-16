@@ -374,13 +374,12 @@ void dumpMADSector() {
     // GPB
     ib = gMADData[3].data[9];
     memset(desc, 0, 64);
-    p = desc;
-    ix = ib & 0x80 >> 7;
-    log_all("GPB: DA = %hhX", ix);
-    ix = ib & 0x40 >> 6;
-    log_all("GPB: MA = %hhX", ix);
-    ix = ib & 0x1;
-    log_all("GPB: ADV = %hhX", ix);
+    if (ib & 0x80) {
+        sprintf(desc, " v.%hhd", ib & 0x1);
+    }
+    log_all("GPB: %s Application Directory%s, %s-application card"
+        , ib & 0x80 ? "Has" : "No", desc
+        , ib & 0x40 ? "multi" : "single");
 
     // AIDs
     for (aid = 1; aid < 16; aid++) {
