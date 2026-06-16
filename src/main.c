@@ -349,7 +349,8 @@ int dumpAccessBits(AccessBits *ab, uint8_t blk) {
 void dumpMADSector() {
     uint8_t ix, ib;
     uint8_t aid, cluster, app;
-    char desc[64];
+    char desc[64], *p;
+    AccessBits ab;
     uint8_t crc = 0xc7; // MAD CRC8 Init value
     // CRC8
     ib = 1;
@@ -370,6 +371,17 @@ void dumpMADSector() {
     } else {
         log_all ("Card publisher sector is absent");
     }
+    // GPB
+    ib = gMADData[3].data[9];
+    memset(desc, 0, 64);
+    p = desc;
+    ix = ib & 0x80 >> 7;
+    log_all("GPB: DA = %hhX", ix);
+    ix = ib & 0x40 >> 6;
+    log_all("GPB: MA = %hhX", ix);
+    ix = ib & 0x1;
+    log_all("GPB: ADV = %hhX", ix);
+
     // AIDs
     for (aid = 1; aid < 16; aid++) {
         ib = aid > 7 ? 1 : 0;
@@ -395,6 +407,12 @@ void dumpMADSector() {
         }
         log_all("AID%0hhX: %s", aid, desc);
     }
+    // Trailer
+    ab.b6.b6 = gMADData[3].data[6];
+    ab.b7.b7 = gMADData[3].data[7];
+    ab.b8.b8 = gMADData[3].data[8];
+    dumpAccessBits(&ab, 0);
+
 }
 
 void parseWriteData (const char *list) {
