@@ -348,6 +348,8 @@ int dumpAccessBits(AccessBits *ab, uint8_t blk) {
 
 void dumpMADSector() {
     uint8_t ix, ib;
+    uint8_t aid, cluster, app;
+    char desc[64];
     uint8_t crc = 0xc7; // MAD CRC8 Init value
     // CRC8
     ib = 1;
@@ -355,10 +357,43 @@ void dumpMADSector() {
         if(ix > 15) ib = 2;
         crc = crc8_lookup[crc ^ gMADData[ib].data[ix - (ib - 1) * 16]];
     }
-    log_all("CRC8 Calc=%02hhX, Read=%02hhX", crc, gMADData[1].data[0]);
-    // Sector 1
-    for (ix = 2; ix < 16; ix++) {
-        //
+    if (crc == gMADData[1].data[0]) {
+        log_all ("CRC8 (%02hhX) \e[32mis valid\e[0m", crc);
+    } else {
+        log_all ("CRC8 (%02hhX) \e[32mis wrong\e[0m (expected %02hhX)", gMADData[1].data[0], crc);
+    }
+    // Info byte
+    uint8_t cbs = gMADData[1].data[1] && 0x3F;
+    if (cbs > 0) {
+        log_all ("Card publisher sector is %02hhX", cbs);
+        // TBD
+    } else {
+        log_all ("Card publisher sector is absent");
+    }
+    // AIDs
+    for (aid = 1; aid < 16; aid++) {
+        ib = aid > 7 ? 1 : 0;
+        ix = aid * 2 - ib * 16;
+        app = gMADData[ib].data[ix];
+        cluster = gMADData[ib].data[ix + 1];
+        memset(desc, 0, 64);
+        switch(cluster) {
+            case 0: // Administration sector
+                switch(app) {
+                    case 0: snprintf(desc, 63, "is free"); break;
+                    case 1: snprintf(desc, 63, "is defect"); break;
+                    case 2: snprintf(desc, 63, "is reserved"); break;
+                    case 3: snprintf(desc, 63, "has directory info"); break;
+                    case 4: snprintf(desc, 63, "has Card holder information"); break;
+                    case 5: snprintf(desc, 63, "not applicable"); break;
+                    default: snprintf(desc, 63, "unknown admin code %02hhX", app); break;
+                }
+                break;
+            default:
+                snprintf(desc, 63, "Cluster %02hhX, Application %02hhX", cluster, app); 
+                break;
+        }
+        log_all("AID%0hhX: %s", aid, desc);
     }
 }
 
