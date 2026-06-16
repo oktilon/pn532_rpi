@@ -746,6 +746,8 @@ int readMadBlock(PN532 *pReader, uint8_t *uid, uint8_t uid_len, uint8_t block_nu
             log_wrn ("Auth block %hhu error 0x%hhX (%s)", block_number, pn532_error, pn532_errorstr(pn532_error));
             return -1;
         }
+
+        gAuthSector = 0;
     }
 
     pn532_error = PN532_MifareClassicReadBlock(pReader, buff, block_number);
