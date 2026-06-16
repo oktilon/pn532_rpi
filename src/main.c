@@ -679,14 +679,16 @@ int main(int argc, char** argv) {
                     log_all ("Found card with UID: \033[96m%s\033[0m", dumpHexData(uid, uid_len, 0));
                     break;
                 }
-                // Write data
-                for (ix = 0; ix < gWriteCount; ix++) {
-                    BlockData *blk = &gWriteData[ix];
-                    if (writeBlock(&pn532, uid, uid_len, blk) == PN532_ERROR_NONE) {
-                        log_inf ("BLK %02d: %s WRITTEN", gWriteData[ix].block, dumpHexData(gWriteData[ix].data, 16, 1));
-                    }
+            }
+            if (!doLoop) break;
+            log_inf ("Writing %d block(s)...", gWriteCount);
+            for (ix = 0; ix < gWriteCount; ix++) {
+                BlockData *blk = &gWriteData[ix];
+                if (writeBlock(&pn532, uid, uid_len, blk) == PN532_ERROR_NONE) {
+                    log_inf ("BLK %02d: %s WRITTEN", gWriteData[ix].block, dumpHexData(gWriteData[ix].data, 16, 1));
                 }
             }
+            doLoop = 0;
         }
     } else {
         while (doLoop) {
